@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Passwordless SDK Test</title>
+</head>
+<body>
+  <h1>Passwordless SDK Test</h1>
+  <div id="info"></div>
+
+  <script type="module">
+    // import trực tiếp file TypeScript SDK (Parcel sẽ biên dịch khi chạy dev)
+    import { init, webauthn } from './src/passwordless-sdk.ts';
+
+    console.log('webauthn', webauthn);
+
+    // Khởi tạo SDK (ví dụ xác định server backend)
+    init({
+      // thay đổi serverUrl theo backend thật của bạn
+      serverUrl: 'http://localhost:8080'
+    });
+
+    document.getElementById('info').innerText = 'SDK loaded — xem console';
+  </script>
+</body>
+</html>

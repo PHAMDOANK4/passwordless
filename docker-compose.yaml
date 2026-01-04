@@ -1,0 +1,18 @@
+version: '3.2'
+
+services:
+  passwordless-service:
+    image: maximthomas/passwordless
+    build:
+      context: .
+    environment:
+      #twilio env vars
+      TWILIO_MESSAGING_SERVICE_SID: foo
+      TWILIO_ACCOUNT_SID: bar
+      TWILIO_AUTH_TOKEN: auth_token
+
+      #mail env vars
+      MAIL_USERNAME: username@gmail.com
+      MAIL_PASSWORD: password
+    ports:
+      - "8080:8080"
