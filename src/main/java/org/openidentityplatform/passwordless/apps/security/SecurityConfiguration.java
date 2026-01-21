@@ -36,6 +36,12 @@ public class SecurityConfiguration {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+            // CSRF protection is disabled for stateless REST API endpoints that use API key authentication.
+            // This is acceptable because:
+            // 1. The API is stateless and uses SessionCreationPolicy.STATELESS
+            // 2. All API requests require X-API-Key header authentication
+            // 3. There are no cookies or session-based authentication
+            // 4. The API is designed for server-to-server communication, not browser-based clients
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth

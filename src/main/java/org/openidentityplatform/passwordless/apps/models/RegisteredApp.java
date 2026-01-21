@@ -35,7 +35,7 @@ public class RegisteredApp {
     @Column(length = 1000)
     private String description;
     
-    @Column(nullable = false, unique = true)
+    @Transient
     private String apiKey;
     
     @Column(nullable = false)

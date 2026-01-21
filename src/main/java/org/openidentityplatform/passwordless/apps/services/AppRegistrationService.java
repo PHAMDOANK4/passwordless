@@ -20,6 +20,8 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.openidentityplatform.passwordless.apps.models.RegisteredApp;
 import org.openidentityplatform.passwordless.apps.repositories.RegisteredAppRepository;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +42,7 @@ public class AppRegistrationService {
     private final SecureRandom secureRandom;
     
     @Transactional
+    @CacheEvict(value = "activeApps", allEntries = true)
     public RegisteredApp registerApp(String name, String description, Integer rateLimitPerMinute, Integer rateLimitPerHour) {
         if (appRepository.existsByName(name)) {
             throw new IllegalArgumentException("App with name '" + name + "' already exists");
@@ -75,17 +78,23 @@ public class AppRegistrationService {
         return appRepository.findAll();
     }
     
+    @Cacheable(value = "activeApps", unless = "#result == null || #result.isEmpty()")
+    public List<RegisteredApp> getActiveApps() {
+        return appRepository.findAll().stream()
+            .filter(RegisteredApp::isActive)
+            .toList();
+    }
+    
     @Transactional
     public boolean validateApiKey(String apiKey) {
         if (apiKey == null || apiKey.isEmpty()) {
             return false;
         }
         
-        // Hash the provided API key
-        List<RegisteredApp> apps = appRepository.findAll();
+        List<RegisteredApp> activeApps = getActiveApps();
         
-        for (RegisteredApp app : apps) {
-            if (app.isActive() && passwordEncoder.matches(apiKey, app.getApiKeyHash())) {
+        for (RegisteredApp app : activeApps) {
+            if (passwordEncoder.matches(apiKey, app.getApiKeyHash())) {
                 // Update last used timestamp
                 app.setLastUsedAt(Instant.now());
                 appRepository.save(app);
@@ -102,10 +111,10 @@ public class AppRegistrationService {
             return Optional.empty();
         }
         
-        List<RegisteredApp> apps = appRepository.findAll();
+        List<RegisteredApp> activeApps = getActiveApps();
         
-        for (RegisteredApp app : apps) {
-            if (app.isActive() && passwordEncoder.matches(apiKey, app.getApiKeyHash())) {
+        for (RegisteredApp app : activeApps) {
+            if (passwordEncoder.matches(apiKey, app.getApiKeyHash())) {
                 app.setLastUsedAt(Instant.now());
                 appRepository.save(app);
                 return Optional.of(app);
@@ -116,6 +125,7 @@ public class AppRegistrationService {
     }
     
     @Transactional
+    @CacheEvict(value = "activeApps", allEntries = true)
     public void deactivateApp(String id) {
         RegisteredApp app = appRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("App not found with id: " + id));
@@ -125,6 +135,7 @@ public class AppRegistrationService {
     }
     
     @Transactional
+    @CacheEvict(value = "activeApps", allEntries = true)
     public void activateApp(String id) {
         RegisteredApp app = appRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("App not found with id: " + id));
@@ -134,12 +145,14 @@ public class AppRegistrationService {
     }
     
     @Transactional
+    @CacheEvict(value = "activeApps", allEntries = true)
     public void deleteApp(String id) {
         appRepository.deleteById(id);
         log.info("Deleted app with id: {}", id);
     }
     
     @Transactional
+    @CacheEvict(value = "activeApps", allEntries = true)
     public String regenerateApiKey(String id) {
         RegisteredApp app = appRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("App not found with id: " + id));
