@@ -43,6 +43,7 @@
         <yarn.version>v1.22.19</yarn.version>
         <guava.version>32.0.0-jre</guava.version>
         <hibernate-validator.version>8.0.0.Final</hibernate-validator.version>
+        <bucket4j.version>8.0.1</bucket4j.version>
     </properties>
 
     <dependencies>
@@ -133,6 +134,13 @@
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-ui</artifactId>
             <version>${springdoc.version}</version>
+        </dependency>
+        
+        <!--rate limiting-->
+        <dependency>
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j-core</artifactId>
+            <version>${bucket4j.version}</version>
         </dependency>
 
         <!--dev tools-->

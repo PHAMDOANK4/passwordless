@@ -24,6 +24,8 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.openidentityplatform.passwordless.apps.models.RegisteredApp;
 import org.openidentityplatform.passwordless.apps.services.AppRegistrationService;
+import org.openidentityplatform.passwordless.apps.services.AuditLogService;
+import org.openidentityplatform.passwordless.apps.services.RateLimitService;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -41,12 +43,15 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
     
     private static final String API_KEY_HEADER = "X-API-Key";
     private final AppRegistrationService appRegistrationService;
+    private final RateLimitService rateLimitService;
+    private final AuditLogService auditLogService;
     
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) 
             throws ServletException, IOException {
         
         String path = request.getRequestURI();
+        String ipAddress = getClientIpAddress(request);
         
         // Skip authentication for app registration endpoints
         if (path.startsWith("/apps/v1")) {
@@ -63,7 +68,9 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         String apiKey = request.getHeader(API_KEY_HEADER);
         
         if (apiKey == null || apiKey.isEmpty()) {
-            log.warn("Missing API key for path: {}", path);
+            log.warn("Missing API key for path: {} from IP: {}", path, ipAddress);
+            auditLogService.logAuthenticationAttempt(null, path, request.getMethod(), 
+                ipAddress, false, "Missing API key");
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.getWriter().write("{\"error\": \"Missing API key. Please provide X-API-Key header.\"}");
             response.setContentType("application/json");
@@ -73,7 +80,9 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         Optional<RegisteredApp> appOpt = appRegistrationService.getAppByApiKey(apiKey);
         
         if (appOpt.isEmpty()) {
-            log.warn("Invalid API key for path: {}", path);
+            log.warn("Invalid API key for path: {} from IP: {}", path, ipAddress);
+            auditLogService.logAuthenticationAttempt(null, path, request.getMethod(), 
+                ipAddress, false, "Invalid API key");
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.getWriter().write("{\"error\": \"Invalid API key\"}");
             response.setContentType("application/json");
@@ -81,6 +90,23 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         }
         
         RegisteredApp app = appOpt.get();
+        
+        // Check rate limit
+        if (!rateLimitService.allowRequest(app)) {
+            log.warn("Rate limit exceeded for app: {} from IP: {}", app.getName(), ipAddress);
+            auditLogService.logRateLimitExceeded(app, path, ipAddress);
+            response.setStatus(429); // Too Many Requests
+            response.getWriter().write("{\"error\": \"Rate limit exceeded. Please try again later.\"}");
+            response.setContentType("application/json");
+            return;
+        }
+        
+        // Log successful authentication
+        auditLogService.logAuthenticationAttempt(app, path, request.getMethod(), 
+            ipAddress, true, null);
+        
+        // Log API request
+        auditLogService.logApiRequest(app, path, request.getMethod(), ipAddress);
         
         // Set authentication in context
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
@@ -100,5 +126,13 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         return path.startsWith("/otp/v1") || 
                path.startsWith("/totp/v1") || 
                path.startsWith("/webauthn/v1");
+    }
+    
+    private String getClientIpAddress(HttpServletRequest request) {
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
+            return xForwardedFor.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
     }
 }
