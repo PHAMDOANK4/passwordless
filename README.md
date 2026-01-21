@@ -6,6 +6,12 @@
 
 A centralized authentication service that provides passwordless authentication methods for your applications.
 
+## 📚 Documentation
+
+- **[API Documentation](docs/API_DOCUMENTATION.md)** - Complete API reference with examples
+- **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment instructions
+- **[Quick Start](#quick-start)** - Get started in 5 minutes
+
 # Table of contents
 
 - [How it works](#how-it-works)
