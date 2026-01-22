@@ -30,7 +30,7 @@ otp:
       name: "Test SMS OTP Setting"
       messageTitle: "Test"
       messageTemplate: "Code: ${otp}"
-      otpLength: 5
+      otpLength: 6
       useLetters: false
       useDigits: true
       ttlMinutes: 3

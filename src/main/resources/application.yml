@@ -41,7 +41,7 @@ otp:
       name: "Dummy SMS OTP Setting"
       messageTitle: "Acme LLC"
       messageTemplate: "Confirmation code: ${otp}"
-      otpLength: 5
+      otpLength: 6
       useLetters: false
       useDigits: true
       ttlMinutes: 3
@@ -51,7 +51,7 @@ otp:
       name: "Twilio SMS OTP Setting"
       messageTitle: "Acme LLC"
       messageTemplate: "Confirmation code: ${otp}"
-      otpLength: 5
+      otpLength: 6
       useLetters: false
       useDigits: true
       ttlMinutes: 3
