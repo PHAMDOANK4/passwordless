@@ -47,7 +47,19 @@ public class OtpRestController {
 
     @PostMapping("/verify")
     public VerifyOtpResult verify(@RequestBody @Valid VerifyOtpRequest verifyOTPRequest) throws NotFoundException, OtpVerifyAttemptsExceeded {
-        return otpService.verify(verifyOTPRequest.sessionId, verifyOTPRequest.otp);
+        // Support two verification modes:
+        // 1. Destination + OTP (Google/Microsoft style) - preferred
+        // 2. SessionId + OTP (legacy backward compatibility)
+        
+        if (verifyOTPRequest.destination != null && !verifyOTPRequest.destination.trim().isEmpty()) {
+            // New method: verify by destination + OTP
+            return otpService.verifyByDestination(verifyOTPRequest.destination, verifyOTPRequest.otp);
+        } else if (verifyOTPRequest.sessionId != null && !verifyOTPRequest.sessionId.trim().isEmpty()) {
+            // Legacy method: verify by sessionId + OTP
+            return otpService.verify(verifyOTPRequest.sessionId, verifyOTPRequest.otp);
+        } else {
+            throw new IllegalArgumentException("Either 'destination' or 'sessionId' must be provided");
+        }
     }
 
 
