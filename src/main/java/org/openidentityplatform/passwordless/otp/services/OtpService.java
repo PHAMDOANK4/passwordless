@@ -50,7 +50,7 @@ public class OtpService {
 
         validateFrequentSending(destination);
 
-        otpSender.sendOTP(destination, messageTitle, messageBody);
+        otpSender.sendOTP(destination, messageBody, messageTitle);
         sentOTP.setAttempts(otpConfiguration.getAttempts());
         sentOtpRepository.save(sentOTP);
 
