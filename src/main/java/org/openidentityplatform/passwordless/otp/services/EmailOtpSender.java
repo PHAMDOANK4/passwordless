@@ -31,11 +31,11 @@ public class EmailOtpSender implements OtpSender {
     }
 
     @Override
-    public void sendOTP(String destination, String messageBody, String messageTitle) {
+    public void sendOTP(String destination, String messageTitle, String messageBody) {
         SimpleMailMessage msg = new SimpleMailMessage();
         msg.setTo(destination);
-        msg.setText(messageBody);
         msg.setSubject(messageTitle);
+        msg.setText(messageBody);
         try{
             this.mailSender.send(msg);
         }

@@ -46,7 +46,7 @@ public class OtpService {
             throw new SenderNotFoundException();
         }
         final String messageTitle = otpSettings.getMessageTitle();
-        final String messageBody = createMessage(otpSettings.getMessageTemplate(), sentOTP.getOtp());
+        final String messageBody = createMessage(otpSettings.getMessageTemplate(), sentOTP);
 
         validateFrequentSending(destination);
 
@@ -74,32 +74,33 @@ public class OtpService {
         }
     }
 
-    private String createMessage(String messageTemplate, String otp) {
+    private String createMessage(String messageTemplate, SentOtp sentOtp) {
         final Map<String, String> values = new HashMap<>();
-        values.put("otp", otp);
+        //dua OTP code vao template
+        values.put("otp", sentOtp.getOtp());
         StringSubstitutor sub = new StringSubstitutor(values);
         return sub.replace(messageTemplate);
     }
 
-    public VerifyOtpResult verify(String sessionId, String otp) throws NotFoundException, OtpVerifyAttemptsExceeded {
-        final UUID sessionUUID;
-        try {
-            sessionUUID = UUID.fromString(sessionId);
-        } catch (IllegalArgumentException e) {
-            log.warn("session {} not found", sessionId);
-            throw new SessionNotFoundException();
-        }
+    public VerifyOtpResult verify(String destination, String otp) throws NotFoundException, OtpVerifyAttemptsExceeded {
+        // final UUID sessionUUID;
+        // try {
+        //     sessionUUID = UUID.fromString(sessionId);
+        // } catch (IllegalArgumentException e) {
+        //     log.warn("session {} not found", sessionId);
+        //     throw new SessionNotFoundException();
+        // }
 
-        Optional<SentOtp> sentOtpOptional = sentOtpRepository.findById(sessionUUID);
+        Optional<SentOtp> sentOtpOptional = sentOtpRepository.findByDestinationAndOtpOrderByLastSentAtDesc(destination, otp);
         if(sentOtpOptional.isEmpty()) {
-            log.warn("session {} not found", sessionId);
+            log.warn("session {} not found", destination);
             throw new SessionNotFoundException();
         }
 
         SentOtp sentOtp = sentOtpOptional.get();
 
         if(sentOtp.getExpireTime() < System.currentTimeMillis()) {
-            log.warn("session {} expired", sessionId);
+            log.warn("session {} expired", destination);
             throw new SessionNotFoundException();
         }
 

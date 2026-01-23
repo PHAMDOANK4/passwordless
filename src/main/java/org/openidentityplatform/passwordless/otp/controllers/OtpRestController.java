@@ -47,7 +47,7 @@ public class OtpRestController {
 
     @PostMapping("/verify")
     public VerifyOtpResult verify(@RequestBody @Valid VerifyOtpRequest verifyOTPRequest) throws NotFoundException, OtpVerifyAttemptsExceeded {
-        return otpService.verify(verifyOTPRequest.sessionId, verifyOTPRequest.otp);
+        return otpService.verify(verifyOTPRequest.destination, verifyOTPRequest.otp);
     }
 
 

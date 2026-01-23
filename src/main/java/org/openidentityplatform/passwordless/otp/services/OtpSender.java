@@ -17,6 +17,6 @@
 package org.openidentityplatform.passwordless.otp.services;
 
 public interface OtpSender {
-    void sendOTP(String destination, String messageBody, String messageTitle) throws SendOtpException;
+    void sendOTP(String destination, String messageTitle, String messageBody) throws SendOtpException;
 
 }

@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class VerifyOtpRequest {
     @NotEmpty
-    public String sessionId;
+    public String destination;
 
     @NotEmpty
     public String otp;

@@ -36,6 +36,7 @@ public class AppRegistrationResponse {
     private Integer rateLimitPerHour;
     
     public static AppRegistrationResponse fromEntity(RegisteredApp app) {
+        System.out.println("Mapping RegisteredApp to AppRegistrationResponse for app ID: " + app.getId());
         return new AppRegistrationResponse(
             app.getId(),
             app.getName(),
