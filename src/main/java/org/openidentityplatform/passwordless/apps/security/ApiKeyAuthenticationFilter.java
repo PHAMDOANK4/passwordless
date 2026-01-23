@@ -123,9 +123,10 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
     }
     
     private boolean isApiEndpoint(String path) {
+        // WebAuthn endpoints are browser-based and don't require API keys
+        // Only OTP and TOTP are server-to-server API endpoints
         return path.startsWith("/otp/v1") || 
-               path.startsWith("/totp/v1") || 
-               path.startsWith("/webauthn/v1");
+               path.startsWith("/totp/v1");
     }
     
     private String getClientIpAddress(HttpServletRequest request) {
