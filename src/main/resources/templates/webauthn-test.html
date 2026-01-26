@@ -292,6 +292,22 @@
     <script>
         const apiUrl = "/webauthn/v1";
 
+        // Utility functions - defined first to ensure availability
+        function bufferDecode(value) {
+            return Uint8Array.from(atob(value), c => c.charCodeAt(0));
+        }
+
+        function bufferEncode(bytes) {
+            let binary = ''
+            const len = bytes.byteLength;
+            for (let i = 0; i < len; i++) {
+                binary += String.fromCharCode( bytes[ i ] );
+            }
+            return window.btoa( binary ).replace(/\+/g, "-")
+                .replace(/\//g, "_")
+                .replace(/=/g, "");
+        }
+
         // Logging functions
         function addLog(message, type = 'info') {
             const logDiv = document.getElementById('log');
@@ -305,6 +321,7 @@
             document.getElementById('log').innerHTML = '';
         }
 
+        // UI state management
         function setButtonState(button, loading) {
             if (loading) {
                 button.disabled = true;
@@ -530,22 +547,7 @@
             });
         }
 
-        function bufferDecode(value) {
-            return Uint8Array.from(atob(value), c => c.charCodeAt(0));
-        }
-
-        function bufferEncode(bytes) {
-            let binary = ''
-            const len = bytes.byteLength;
-            for (let i = 0; i < len; i++) {
-                binary += String.fromCharCode( bytes[ i ] );
-            }
-            return window.btoa( binary ).replace(/\+/g, "-")
-                .replace(/\//g, "_")
-                .replace(/=/g, "");
-        }
-
-        // Initialize
+        // Initialize on page load
         addLog('👋 Welcome! Enter a username and click Register to get started', 'info');
     </script>
 </body>
