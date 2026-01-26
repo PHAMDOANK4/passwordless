@@ -485,6 +485,17 @@
             if(challenge.allowCredentials && Array.isArray(challenge.allowCredentials)) {
                 challenge.allowCredentials.forEach(allowCredential => {
                     allowCredential.id = bufferDecode(allowCredential.id);
+                    
+                    // Ensure transports is always an array
+                    if (allowCredential.transports) {
+                        if (typeof allowCredential.transports === 'string') {
+                            // If transports is a string, split it into an array
+                            allowCredential.transports = allowCredential.transports.split(',').map(t => t.trim()).filter(t => t);
+                        } else if (!Array.isArray(allowCredential.transports)) {
+                            // If it's not a string or array, remove it
+                            delete allowCredential.transports;
+                        }
+                    }
                 });
             } else {
                 // If allowCredentials is not a valid array, remove it or set to empty array
