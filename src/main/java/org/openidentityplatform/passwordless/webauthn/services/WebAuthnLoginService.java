@@ -73,10 +73,13 @@ public class WebAuthnLoginService {
             allowCredentials.add(publicKeyCredentialDescriptor);
         }
 
+        // Use allowCredentials list if not empty, otherwise pass null to allow any authenticator
+        List<PublicKeyCredentialDescriptor> credentialsToUse = allowCredentials.isEmpty() ? null : allowCredentials;
+        
         PublicKeyCredentialRequestOptions publicKeyCredentialRequestOptions = new PublicKeyCredentialRequestOptions(
                 challenge, webAuthnConfiguration.getTimeout(),
                 webAuthnConfiguration.getRpId(),
-                null, userVerificationRequirement, null
+                credentialsToUse, userVerificationRequirement, null
         );
 
         return publicKeyCredentialRequestOptions;

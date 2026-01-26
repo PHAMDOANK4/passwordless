@@ -480,11 +480,16 @@
             addLog('👆 Please authenticate with your biometric or security key', 'info');
 
             challenge.challenge = bufferDecode(challenge.challenge.value);
-            if(challenge.allowCredentials) {
+            
+            // Properly handle allowCredentials - ensure it's an array or undefined
+            if(challenge.allowCredentials && Array.isArray(challenge.allowCredentials)) {
                 challenge.allowCredentials.forEach(allowCredential => {
-                        allowCredential.id = bufferDecode(allowCredential.id);
-                    }
-                );
+                    allowCredential.id = bufferDecode(allowCredential.id);
+                });
+            } else {
+                // If allowCredentials is not a valid array, remove it or set to empty array
+                // Setting to undefined allows WebAuthn to work without credential restrictions
+                challenge.allowCredentials = challenge.allowCredentials === null ? undefined : challenge.allowCredentials;
             }
             console.log('login challenge', challenge);
 
