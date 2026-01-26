@@ -31,15 +31,39 @@
             </column>
         </createTable>
         <createTable tableName="webauthn_authenticators">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
             <column name="username" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="credential_id" type="varchar(512)">
                 <constraints nullable="false"/>
             </column>
             <column name="authenticator" type="text">
                 <constraints nullable="false"/>
             </column>
+            <column name="attestation_type" type="varchar(50)"/>
+            <column name="transports" type="varchar(255)"/>
+            <column name="counter" type="bigint"/>
+            <column name="backup_eligible" type="boolean"/>
+            <column name="backed_up" type="boolean"/>
+            <column name="uv_initialized" type="boolean"/>
+            <column name="created_at" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_used_at" type="timestamp"/>
+            <column name="user_agent" type="varchar(512)"/>
+            <column name="device_name" type="varchar(255)"/>
         </createTable>
-        <createIndex indexName="IX_webauthn_authenticators_username" tableName="webauthn_authenticators">
+        <createIndex indexName="idx_username" tableName="webauthn_authenticators">
             <column name="username"/>
+        </createIndex>
+        <createIndex indexName="idx_credential_id" tableName="webauthn_authenticators">
+            <column name="credential_id"/>
         </createIndex>
     </changeSet>
 
