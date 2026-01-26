@@ -18,11 +18,11 @@ import java.io.Serializable;
 public class WebAuthnAuthenticatorEntity implements Serializable {
 
     @Id
-    @Column(name = "username")
+    @Column(name = "username", length = 255)
     private String username;
 
     @Id
-    @Column(name = "authenticator")
+    @Column(name = "authenticator", columnDefinition = "TEXT")
     private String authenticator;
 
 }

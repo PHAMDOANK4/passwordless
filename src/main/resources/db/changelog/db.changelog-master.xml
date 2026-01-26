@@ -31,10 +31,10 @@
             </column>
         </createTable>
         <createTable tableName="webauthn_authenticators">
-            <column name="username" type="varchar">
+            <column name="username" type="varchar(255)">
                 <constraints nullable="false"/>
             </column>
-            <column name="authenticator" type="varchar">
+            <column name="authenticator" type="text">
                 <constraints nullable="false"/>
             </column>
         </createTable>
