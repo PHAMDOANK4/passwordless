@@ -11,6 +11,7 @@ import com.webauthn4j.data.client.CollectedClientData;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.openidentityplatform.passwordless.webauthn.configuration.WebAuthnConfiguration;
+import org.openidentityplatform.passwordless.webauthn.repositories.UserAuthenticatorRDBMSRepository;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpSession;
 
@@ -30,19 +31,21 @@ import static org.mockito.Mockito.when;
 class WebAuthnLoginServiceTest {
 
     private WebAuthnConfiguration webAuthnConfiguration;
+    private UserAuthenticatorRDBMSRepository userAuthenticatorRepository;
     private WebAuthnLoginService webAuthnLoginService;
     private MockHttpServletRequest request;
 
     @BeforeEach
     void setup() {
         webAuthnConfiguration = mock(WebAuthnConfiguration.class);
+        userAuthenticatorRepository = mock(UserAuthenticatorRDBMSRepository.class);
         
         // Configure mock with typical WebAuthn settings
         when(webAuthnConfiguration.getRpId()).thenReturn("localhost");
         when(webAuthnConfiguration.getOriginUrl()).thenReturn("http://localhost:8080");
         when(webAuthnConfiguration.getTimeout()).thenReturn(60000L);
         
-        webAuthnLoginService = new WebAuthnLoginService(webAuthnConfiguration);
+        webAuthnLoginService = new WebAuthnLoginService(webAuthnConfiguration, userAuthenticatorRepository);
         
         // Create request with a session
         request = new MockHttpServletRequest();
