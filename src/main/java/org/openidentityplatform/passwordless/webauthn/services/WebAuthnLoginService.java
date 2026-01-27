@@ -112,6 +112,10 @@ public class WebAuthnLoginService {
                 Objects.deepEquals(cr.getAttestedCredentialData().getCredentialId(), id))
                 .findFirst().orElse(null);
 
+        if (credentialRecord == null) {
+            throw new IllegalArgumentException("Credential not found for the provided credential ID. User may need to register this authenticator.");
+        }
+
         AuthenticationParameters authenticationParameters =
                 new AuthenticationParameters(
                         serverProperty,
