@@ -2,7 +2,8 @@ server:
   servlet:
     session:
       cookie:
-        same-site: lax
+        same-site: none
+        secure: true
 
 spring:
   mail:
@@ -57,24 +58,22 @@ otp:
       ttlMinutes: 3
       sender: "twilioOTPSender"
 
-    - id: "emailLink"
-      name: "Email Link OTP Setting"
-      messageTitle: "Acme LLC"
-      messageTemplate: >
-        Click the following link to confirm your action:
-        http://localhost:8080/confirm?otp=${otp}&operationId=${operationId}
-      otpLength: 20
-      useLetters: true
+    - id: "emailOtp"
+      name: "Email OTP Setting"
+      messageTitle: "Authentication Code for your Account"
+      messageTemplate: "Confirmation code: ${otp}"
+      otpLength: 6
+      useLetters: false
       useDigits: true
-      ttlMinutes: 10
+      ttlMinutes: 3
       sender: "emailOtpSender"
-
+      
 webauthn:
   settings:
     timeout: 60000
-    rpId: localhost
-    origin: "http://localhost:8080"
+    rpId: authentication.k4.vn
+    origin: "https://authentication.k4.vn"
 
 totp:
-  issuer: "acme.com"
-  issuerLabel: "Acme LLC"
+  issuer: "K4Infosec.com"
+  issuerLabel: "K4Infosec"
