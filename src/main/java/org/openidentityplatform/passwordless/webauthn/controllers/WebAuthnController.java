@@ -43,7 +43,7 @@ import java.util.Set;
 @Slf4j
 @RestController
 @RequestMapping("/webauthn/v1")
-@CrossOrigin(origins = "http://localhost:1234",
+@CrossOrigin(origins = {"http://localhost:1234", "http://localhost:8080", "https://authentication.k4.vn"},
         allowCredentials = "true"
         )
 public class WebAuthnController {
