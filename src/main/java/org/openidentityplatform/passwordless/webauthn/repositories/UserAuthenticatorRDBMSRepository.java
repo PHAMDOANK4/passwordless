@@ -59,7 +59,32 @@ public class UserAuthenticatorRDBMSRepository implements UserAuthenticatorReposi
     public Set<CredentialRecord> load(String username) {
         List<WebAuthnAuthenticatorEntity> webAuthenticators = userAuthenticatorJPARepository.getAllByUsername(username);
         return webAuthenticators.stream()
-                .map(wa -> AuthenticatorEntity.fromJson(wa.getAuthenticator()).toCredentialRecord())
+                .map(wa -> {
+                    // Load credential record from JSON
+                    CredentialRecord credentialRecord = AuthenticatorEntity.fromJson(wa.getAuthenticator()).toCredentialRecord();
+                    
+                    // IMPORTANT: Override the counter from JSON with the database column value
+                    // This ensures we always use the most up-to-date counter value
+                    // The JSON may have stale counter values from previous authentications
+                    Long dbCounter = wa.getCounter();
+                    if (dbCounter != null && dbCounter != credentialRecord.getCounter()) {
+                        // Create new CredentialRecord with database counter value
+                        credentialRecord = new CredentialRecordImpl(
+                            credentialRecord.getAttestationStatement(),
+                            credentialRecord.isUvInitialized(),
+                            credentialRecord.isBackupEligible(),
+                            credentialRecord.isBackedUp(),
+                            dbCounter, // Use counter from database column
+                            credentialRecord.getAttestedCredentialData(),
+                            credentialRecord.getAuthenticatorExtensions(),
+                            credentialRecord.getClientData(),
+                            credentialRecord.getClientExtensions(),
+                            credentialRecord.getTransports()
+                        );
+                    }
+                    
+                    return credentialRecord;
+                })
                 .collect(Collectors.toSet());
     }
     

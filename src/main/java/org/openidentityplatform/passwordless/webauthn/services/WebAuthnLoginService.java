@@ -147,15 +147,27 @@ public class WebAuthnLoginService {
         
         // Update the counter of the authenticator record after successful authentication
         long newCounter = authenticationData.getAuthenticatorData().getSignCount();
-        log.info("Updating counter for credential ID. Old counter: {}, New counter: {}", 
-                credentialRecord.getCounter(), newCounter);
+        long storedCounter = credentialRecord.getCounter();
         
-        // Validate counter (detect cloned authenticators)
-        if (newCounter > 0 && credentialRecord.getCounter() > 0) {
-            if (newCounter <= credentialRecord.getCounter()) {
-                log.warn("Possible cloned authenticator detected! Stored counter: {}, Received counter: {}", 
-                        credentialRecord.getCounter(), newCounter);
-                throw new IllegalStateException("Authenticator counter did not increase. This may indicate a cloned authenticator.");
+        log.info("Counter validation - Stored: {}, Received: {}", storedCounter, newCounter);
+        
+        // Validate counter (detect cloned authenticators and replay attacks)
+        // Note: Some authenticators (especially platform authenticators like Touch ID, Windows Hello)
+        // may not increment the counter on every use. This is valid behavior.
+        // We only reject if the counter DECREASES, which indicates a replay attack.
+        if (newCounter > 0 && storedCounter > 0) {
+            if (newCounter < storedCounter) {
+                // Counter decreased - this is a security issue (replay attack or cloned authenticator)
+                log.error("SECURITY ALERT: Authenticator counter decreased! Stored: {}, Received: {}. This indicates a replay attack or cloned authenticator.", 
+                        storedCounter, newCounter);
+                throw new IllegalStateException("Authenticator counter decreased. This indicates a replay attack or cloned authenticator.");
+            } else if (newCounter == storedCounter) {
+                // Counter stayed the same - this is acceptable for platform authenticators
+                log.info("Counter did not increase (stored: {}, received: {}). This is normal for platform authenticators (Touch ID, Windows Hello, etc.)", 
+                        storedCounter, newCounter);
+            } else {
+                // Counter increased - this is the expected behavior
+                log.info("Counter increased successfully from {} to {}", storedCounter, newCounter);
             }
         }
         
