@@ -16,6 +16,7 @@
 
 package org.openidentityplatform.passwordless.configuration;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -30,8 +31,12 @@ public class JacksonConfiguration {
     @Primary
     public ObjectMapper objectMapper() {
         ObjectMapper mapper = new ObjectMapper();
+        // Register JavaTimeModule for Java 8 date/time support
         mapper.registerModule(new JavaTimeModule());
+        // Disable writing dates as timestamps (use ISO-8601 format instead)
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        // Exclude null values from JSON serialization
+        mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
         return mapper;
     }
 }
