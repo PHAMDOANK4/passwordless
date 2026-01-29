@@ -38,7 +38,6 @@
         <webauthn4j.version>0.24.0.RELEASE</webauthn4j.version>
         <java-totp.version>0.4.0</java-totp.version>
         <zxing.version>3.5.1</zxing.version>
-        <springdoc.version>1.6.15</springdoc.version>
         <nodejs.version>v16.16.0</nodejs.version>
         <yarn.version>v1.22.19</yarn.version>
         <guava.version>32.0.0-jre</guava.version>
@@ -136,8 +135,8 @@
         </dependency>
         <dependency>
             <groupId>org.springdoc</groupId>
-            <artifactId>springdoc-openapi-ui</artifactId>
-            <version>${springdoc.version}</version>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>2.3.0</version>
         </dependency>
         
         <!--rate limiting-->

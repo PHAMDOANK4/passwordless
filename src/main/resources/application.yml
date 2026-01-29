@@ -78,3 +78,20 @@ webauthn:
 totp:
   issuer: "acme.com"
   issuerLabel: "Acme LLC"
+
+# Swagger/OpenAPI Configuration
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operationsSorter: method
+    tagsSorter: alpha
+    tryItOutEnabled: true
+    filter: true
+    displayRequestDuration: true
+  show-actuator: true
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
