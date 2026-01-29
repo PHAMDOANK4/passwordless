@@ -28,12 +28,12 @@ Tài liệu tham khảo nhanh về Swagger/OpenAPI đã được tích hợp và
 
 **Local:**
 ```
-http://localhost:8080/swagger-ui.html
+http://localhost:8080/swagger-ui/
 ```
 
 **Production:**
 ```
-https://authentication.k4.vn/swagger-ui.html
+https://authentication.k4.vn/swagger-ui/
 ```
 
 ### Test Without API Key:
@@ -130,7 +130,7 @@ docs/
 
 | URL | Purpose |
 |-----|---------|
-| `/swagger-ui.html` | Interactive UI |
+| `/swagger-ui/` | Interactive UI |
 | `/v3/api-docs` | OpenAPI JSON |
 | `/swagger-ui/index.html` | Alternative path |
 
@@ -210,7 +210,7 @@ Execute request → Click copy icon
 mvn spring-boot:run
 
 # 2. Open browser
-http://localhost:8080/swagger-ui.html
+http://localhost:8080/swagger-ui/
 
 # 3. Should see:
 - "Passwordless Authentication API" title
@@ -233,7 +233,7 @@ http://localhost:8080/swagger-ui.html
 
 **Ready to use immediately!**
 
-Just start the app and go to `/swagger-ui.html` 🚀
+Just start the app and go to `/swagger-ui/` 🚀
 
 ---
 

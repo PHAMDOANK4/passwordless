@@ -40,7 +40,7 @@ Developer: "API này nhận parameters gì nhỉ?"
 
 **Sau khi có Swagger:**
 ```
-Developer: Opens /swagger-ui.html
+Developer: Opens /swagger-ui/
 → Thấy ngay tất cả APIs
 → Click "Try it out" → Test ngay
 → Documentation luôn cập nhật
@@ -55,12 +55,12 @@ Developer: Opens /swagger-ui.html
 
 **Local Development:**
 ```
-http://localhost:8080/swagger-ui.html
+http://localhost:8080/swagger-ui/
 ```
 
 **Production:**
 ```
-https://authentication.k4.vn/swagger-ui.html
+https://authentication.k4.vn/swagger-ui/
 ```
 
 ### OpenAPI JSON Spec
@@ -127,7 +127,7 @@ APIs không yêu cầu API key:
 
 **Bước 1:** Mở Swagger UI
 ```
-http://localhost:8080/swagger-ui.html
+http://localhost:8080/swagger-ui/
 ```
 
 **Bước 2:** Tìm "App Management" section
@@ -530,7 +530,7 @@ public ResponseEntity<MyResponse> create(
 ```bash
 mvn clean compile
 # Restart app
-# Refresh http://localhost:8080/swagger-ui.html
+# Refresh http://localhost:8080/swagger-ui/
 ```
 
 Endpoint mới sẽ tự động xuất hiện!
@@ -554,7 +554,7 @@ Endpoint mới sẽ tự động xuất hiện!
 
 **Symptom:**
 ```
-http://localhost:8080/swagger-ui.html
+http://localhost:8080/swagger-ui/
 → 404 Not Found
 ```
 
@@ -824,7 +824,7 @@ Chrome, Firefox, Edge all supported
 
 | URL | Mục đích |
 |-----|---------|
-| `/swagger-ui.html` | Interactive UI |
+| `/swagger-ui/` | Interactive UI |
 | `/v3/api-docs` | OpenAPI JSON |
 | `/swagger-ui/index.html` | Alternative UI path |
 
