@@ -43,4 +43,114 @@
         </createIndex>
     </changeSet>
 
+    <changeSet id="2" author="authcentral">
+        <createTable tableName="app_users">
+            <column name="user_id" type="uuid">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="handle" type="varchar(320)">
+                <constraints unique="true" nullable="false"/>
+            </column>
+            <column name="mail_addr" type="varchar(320)"/>
+            <column name="phone_num" type="varchar(30)"/>
+            <column name="active" type="boolean" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="registered_at" type="timestamp">
+                <constraints nullable="false"/>
+            </column>
+            <column name="modified_at" type="timestamp"/>
+        </createTable>
+
+        <createTable tableName="registered_clients">
+            <column name="rc_id" type="uuid">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="app_key" type="varchar(128)">
+                <constraints unique="true" nullable="false"/>
+            </column>
+            <column name="app_secret" type="varchar(256)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="display_name" type="varchar(200)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="callback_uri" type="varchar(2048)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="active" type="boolean" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamp">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createTable tableName="issued_grants">
+            <column name="grant_id" type="uuid">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="uuid">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rc_id" type="uuid">
+                <constraints nullable="false"/>
+            </column>
+            <column name="bearer_token" type="varchar(512)">
+                <constraints unique="true" nullable="false"/>
+            </column>
+            <column name="refresh_token" type="varchar(512)">
+                <constraints unique="true"/>
+            </column>
+            <column name="auth_method" type="varchar(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="granted_at" type="timestamp">
+                <constraints nullable="false"/>
+            </column>
+            <column name="valid_until" type="timestamp">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="issued_grants"
+                                 baseColumnNames="user_id"
+                                 referencedTableName="app_users"
+                                 referencedColumnNames="user_id"
+                                 constraintName="FK_grants_user"/>
+
+        <addForeignKeyConstraint baseTableName="issued_grants"
+                                 baseColumnNames="rc_id"
+                                 referencedTableName="registered_clients"
+                                 referencedColumnNames="rc_id"
+                                 constraintName="FK_grants_client"/>
+
+        <addColumn tableName="sent_otp">
+            <column name="user_id" type="uuid"/>
+        </addColumn>
+        <addForeignKeyConstraint baseTableName="sent_otp"
+                                 baseColumnNames="user_id"
+                                 referencedTableName="app_users"
+                                 referencedColumnNames="user_id"
+                                 constraintName="FK_sentotp_user"/>
+
+        <addColumn tableName="registered_totps">
+            <column name="user_id" type="uuid"/>
+        </addColumn>
+        <addForeignKeyConstraint baseTableName="registered_totps"
+                                 baseColumnNames="user_id"
+                                 referencedTableName="app_users"
+                                 referencedColumnNames="user_id"
+                                 constraintName="FK_totp_user"/>
+
+        <addColumn tableName="webauthn_authenticators">
+            <column name="user_id" type="uuid"/>
+        </addColumn>
+        <addForeignKeyConstraint baseTableName="webauthn_authenticators"
+                                 baseColumnNames="user_id"
+                                 referencedTableName="app_users"
+                                 referencedColumnNames="user_id"
+                                 constraintName="FK_webauthn_user"/>
+    </changeSet>
+
 </databaseChangeLog>
