@@ -55,6 +55,5 @@ public class RegisteredClient {
         this.appSecret = appSecret;
         this.displayName = displayName;
         this.callbackUri = callbackUri;
-        this.createdAt = Instant.now();
     }
 }

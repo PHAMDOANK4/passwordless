@@ -71,7 +71,6 @@ public class IssuedAccessGrant {
         this.bearerToken = bearerToken;
         this.refreshToken = refreshToken;
         this.authMethod = authMethod;
-        this.grantedAt = Instant.now();
         this.validUntil = validUntil;
     }
 }

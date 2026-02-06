@@ -5,6 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -48,11 +49,14 @@ public class AppUser {
     @Column(name = "modified_at")
     private Instant modifiedAt = Instant.now();
 
+    @PreUpdate
+    void onUpdate() {
+        this.modifiedAt = Instant.now();
+    }
+
     public AppUser(String handle, String mailAddr, String phoneNum) {
         this.handle = handle;
         this.mailAddr = mailAddr;
         this.phoneNum = phoneNum;
-        this.registeredAt = Instant.now();
-        this.modifiedAt = Instant.now();
     }
 }
