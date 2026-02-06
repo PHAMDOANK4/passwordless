@@ -16,23 +16,30 @@
 
 package org.openidentityplatform.passwordless.otp.models;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.openidentityplatform.passwordless.iam.models.User;
 
 import java.util.UUID;
 
+/**
+ * Sent OTP Entity
+ * Tracks OTP codes sent for authentication
+ * Linked to User for centralized authentication tracking
+ */
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @ToString
 @Entity
-@Table(name = "sent_otp")
+@Table(name = "sent_otp", indexes = {
+    @Index(name = "idx_otp_destination", columnList = "destination"),
+    @Index(name = "idx_otp_user", columnList = "user_id"),
+    @Index(name = "idx_otp_expire", columnList = "expireTime")
+})
 public class SentOtp {
 
     @Id
@@ -48,5 +55,13 @@ public class SentOtp {
     private long lastSentAt;
 
     private Integer attempts;
+    
+    /**
+     * Link to User entity for centralized authentication
+     * Optional because OTP can be sent before user is fully identified
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
 
 }

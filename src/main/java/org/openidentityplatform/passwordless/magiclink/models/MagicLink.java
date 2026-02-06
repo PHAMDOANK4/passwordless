@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.openidentityplatform.passwordless.iam.models.User;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -12,11 +13,13 @@ import java.util.UUID;
 /**
  * Magic Link Entity
  * One-time tokens for passwordless login or account recovery
+ * Linked to User for centralized authentication tracking
  */
 @Entity
 @Table(name = "magic_links", indexes = {
     @Index(name = "idx_magic_token", columnList = "token", unique = true),
     @Index(name = "idx_magic_email", columnList = "email"),
+    @Index(name = "idx_magic_user", columnList = "user_id"),
     @Index(name = "idx_magic_expires", columnList = "expires_at")
 })
 @Getter
@@ -34,6 +37,14 @@ public class MagicLink {
     
     @Column(name = "email", nullable = false, length = 255)
     private String email;  // User email
+    
+    /**
+     * Link to User entity for centralized authentication
+     * Optional because magic links can be sent before user is fully registered
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
     
     @Enumerated(EnumType.STRING)
     @Column(name = "purpose", nullable = false, length = 20)

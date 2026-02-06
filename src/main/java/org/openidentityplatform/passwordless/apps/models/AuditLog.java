@@ -18,12 +18,22 @@ package org.openidentityplatform.passwordless.apps.models;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import org.openidentityplatform.passwordless.iam.models.Domain;
+import org.openidentityplatform.passwordless.iam.models.User;
+
 import java.time.Instant;
 
+/**
+ * Audit Log Entity
+ * Tracks all authentication and API events
+ * Linked to User and Domain for centralized audit trail
+ */
 @Data
 @Entity
 @Table(name = "audit_logs", indexes = {
     @Index(name = "idx_app_id", columnList = "app_id"),
+    @Index(name = "idx_audit_user", columnList = "user_id"),
+    @Index(name = "idx_audit_domain", columnList = "domain_id"),
     @Index(name = "idx_created_at", columnList = "created_at"),
     @Index(name = "idx_event_type", columnList = "event_type")
 })
@@ -38,6 +48,23 @@ public class AuditLog {
     
     @Column(name = "app_name")
     private String appName;
+    
+    /**
+     * Link to User entity - who performed the action
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
+    
+    /**
+     * Link to Domain entity - which organization/domain
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "domain_id")
+    private Domain domain;
+    
+    @Column(name = "user_email", length = 255)
+    private String userEmail;  // Denormalized for quick lookup
     
     @Column(name = "event_type", nullable = false)
     private String eventType;
@@ -56,6 +83,9 @@ public class AuditLog {
     
     @Column(name = "error_message", length = 500)
     private String errorMessage;
+    
+    @Column(name = "details", columnDefinition = "TEXT")
+    private String details;  // Additional details in JSON format
     
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;

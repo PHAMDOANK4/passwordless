@@ -5,14 +5,21 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.openidentityplatform.passwordless.iam.models.User;
 
 import java.io.Serializable;
 import java.time.Instant;
 
+/**
+ * WebAuthn Authenticator Entity
+ * Stores WebAuthn/FIDO2 credentials for passwordless authentication
+ * Linked to User for centralized authentication tracking
+ */
 @Entity
 @Table(name = "webauthn_authenticators", indexes = {
         @Index(name = "idx_username", columnList = "username"),
-        @Index(name = "idx_credential_id", columnList = "credential_id")
+        @Index(name = "idx_credential_id", columnList = "credential_id"),
+        @Index(name = "idx_webauthn_user", columnList = "user_id")
 })
 @Getter
 @Setter
@@ -66,5 +73,13 @@ public class WebAuthnAuthenticatorEntity implements Serializable {
 
     @Column(name = "device_name", length = 255)
     private String deviceName;
+    
+    /**
+     * Link to User entity for centralized authentication
+     * Optional because WebAuthn can be registered before full user setup
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
 
 }

@@ -18,11 +18,21 @@ package org.openidentityplatform.passwordless.apps.models;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import org.openidentityplatform.passwordless.iam.models.Domain;
+
 import java.time.Instant;
 
+/**
+ * Registered App Entity
+ * Represents an application registered to use the authentication service
+ * Linked to Domain for multi-tenant support
+ */
 @Data
 @Entity
-@Table(name = "registered_apps")
+@Table(name = "registered_apps", indexes = {
+    @Index(name = "idx_app_name", columnList = "name", unique = true),
+    @Index(name = "idx_app_domain", columnList = "domain_id")
+})
 public class RegisteredApp {
     
     @Id
@@ -34,6 +44,14 @@ public class RegisteredApp {
     
     @Column(length = 1000)
     private String description;
+    
+    /**
+     * Link to Domain entity for multi-tenant support
+     * Optional for backward compatibility (can be null for global apps)
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "domain_id")
+    private Domain domain;
     
     @Transient
     private String apiKey;
@@ -58,6 +76,12 @@ public class RegisteredApp {
     
     @Column(name = "rate_limit_per_hour")
     private Integer rateLimitPerHour = 1000;
+    
+    @Column(name = "allowed_origins", columnDefinition = "TEXT")
+    private String allowedOrigins;  // Comma-separated list of allowed origins for CORS
+    
+    @Column(name = "created_by", length = 255)
+    private String createdBy;  // User email who created this app
     
     @PrePersist
     protected void onCreate() {
