@@ -60,11 +60,7 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public UserResponse getUser(String domainId, String id) throws NotFoundException {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("User not found: " + id));
-        if (!user.getDomain().getId().equals(domainId)) {
-            throw new NotFoundException("User not found in domain: " + domainId);
-        }
+        User user = findUserInDomain(domainId, id);
         return toUserResponse(user);
     }
 
@@ -83,11 +79,7 @@ public class UserService {
 
     @Transactional
     public UserResponse deactivateUser(String domainId, String id) throws NotFoundException {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("User not found: " + id));
-        if (!user.getDomain().getId().equals(domainId)) {
-            throw new NotFoundException("User not found in domain: " + domainId);
-        }
+        User user = findUserInDomain(domainId, id);
         user.setStatus(User.UserStatus.SUSPENDED);
         user = userRepository.save(user);
         return toUserResponse(user);
@@ -95,14 +87,19 @@ public class UserService {
 
     @Transactional
     public UserResponse activateUser(String domainId, String id) throws NotFoundException {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("User not found: " + id));
-        if (!user.getDomain().getId().equals(domainId)) {
-            throw new NotFoundException("User not found in domain: " + domainId);
-        }
+        User user = findUserInDomain(domainId, id);
         user.setStatus(User.UserStatus.ACTIVE);
         user = userRepository.save(user);
         return toUserResponse(user);
+    }
+
+    private User findUserInDomain(String domainId, String userId) throws NotFoundException {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found: " + userId));
+        if (!user.getDomain().getId().equals(domainId)) {
+            throw new NotFoundException("User not found in domain: " + domainId);
+        }
+        return user;
     }
 
     private UserResponse toUserResponse(User user) {

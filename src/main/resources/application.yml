@@ -16,9 +16,9 @@ spring:
       mail.smtp.starttls.enable: false
 
   datasource:
-    url: jdbc:mysql://localhost:3306/passwordless?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8
-    username: root
-    password: "123456"
+    url: ${DB_URL:jdbc:mysql://localhost:3306/passwordless?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:changeme}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
@@ -100,3 +100,7 @@ jwt:
   access-token-expiration-minutes: 15
   refresh-token-expiration-days: 7
   issuer: "passwordless-auth"
+
+security:
+  max-failed-attempts: 5
+  lockout-duration-minutes: 15

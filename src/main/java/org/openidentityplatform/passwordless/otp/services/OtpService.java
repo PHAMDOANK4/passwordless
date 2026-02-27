@@ -70,7 +70,7 @@ public class OtpService {
         if(sentOtp.isEmpty()) {
             return;
         }
-        int resendAfterMilliseconds = otpConfiguration.getResendAllowedAfterMinutes() * 1000 * 60;
+        long resendAfterMilliseconds = (long) otpConfiguration.getResendAllowedAfterMinutes() * 1000L * 60L;
         long resendAllowedAt = sentOtp.get().getLastSentAt() + resendAfterMilliseconds;
         if(resendAllowedAt > System.currentTimeMillis()) {
             log.warn("frequent sending to {} forbidden", destination);
@@ -113,25 +113,7 @@ public class OtpService {
             throw new SessionNotFoundException();
         }
 
-        if(sentOtp.getAttempts() == 0) {
-            throw new OtpVerifyAttemptsExceeded();
-        }
-
-        boolean result = sentOtp.getExpireTime() > System.currentTimeMillis()
-                && passwordEncoder.matches(otp, sentOtp.getOtp());
-
-        Integer remainingAttempts = null;
-        if(!result) {
-            remainingAttempts = sentOtp.getAttempts() - 1;
-            remainingAttempts = remainingAttempts < 0 ? 0 : remainingAttempts;
-            sentOtp.setAttempts(remainingAttempts);
-            sentOtpRepository.save(sentOtp);
-        } else {
-            // On successful verification, delete the OTP to prevent reuse
-            sentOtpRepository.delete(sentOtp);
-        }
-
-        return new VerifyOtpResult(result, remainingAttempts);
+        return doVerify(sentOtp, otp);
     }
 
     /**
@@ -162,6 +144,10 @@ public class OtpService {
             throw new SessionNotFoundException();
         }
 
+        return doVerify(sentOtp, otp);
+    }
+
+    private VerifyOtpResult doVerify(SentOtp sentOtp, String otp) throws OtpVerifyAttemptsExceeded {
         if(sentOtp.getAttempts() == 0) {
             throw new OtpVerifyAttemptsExceeded();
         }
@@ -172,9 +158,12 @@ public class OtpService {
         Integer remainingAttempts = null;
         if(!result) {
             remainingAttempts = sentOtp.getAttempts() - 1;
-            remainingAttempts = remainingAttempts < 0 ? 0 : remainingAttempts;
+            remainingAttempts = Math.max(remainingAttempts, 0);
             sentOtp.setAttempts(remainingAttempts);
             sentOtpRepository.save(sentOtp);
+        } else {
+            // On successful verification, delete the OTP to prevent reuse
+            sentOtpRepository.delete(sentOtp);
         }
 
         return new VerifyOtpResult(result, remainingAttempts);

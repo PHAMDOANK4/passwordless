@@ -55,7 +55,7 @@ public class SecurityConfiguration {
                 .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/webauthn/test", "/webauthn/test/**", "/webauthn/v1/**", "/js/**").permitAll()
                 .requestMatchers("/admin/**", "/api/domains/**", "/css/**").permitAll()
-                .anyRequest().permitAll()
+                .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, ApiKeyAuthenticationFilter.class)
             .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

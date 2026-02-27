@@ -2,9 +2,9 @@ package org.openidentityplatform.passwordless.auth.services;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.openidentityplatform.passwordless.configuration.SecurityProperties;
 import org.openidentityplatform.passwordless.iam.models.User;
 import org.openidentityplatform.passwordless.iam.repositories.UserRepository;
 
@@ -20,7 +20,6 @@ class AccountLockoutServiceTest {
     @Mock
     private UserRepository userRepository;
 
-    @InjectMocks
     private AccountLockoutService accountLockoutService;
 
     private User user;
@@ -28,6 +27,10 @@ class AccountLockoutServiceTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
+        SecurityProperties securityProperties = new SecurityProperties();
+        securityProperties.setMaxFailedAttempts(5);
+        securityProperties.setLockoutDurationMinutes(15);
+        accountLockoutService = new AccountLockoutService(userRepository, securityProperties);
         user = new User();
         user.setId("user-123");
         user.setEmail("user@test.com");
