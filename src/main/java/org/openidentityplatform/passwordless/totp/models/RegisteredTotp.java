@@ -34,4 +34,7 @@ public class RegisteredTotp {
     @JoinColumn(name = "user_id")
     private User user;
 
+    @Column
+    private Long lastUsedStep;
+
 }
