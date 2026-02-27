@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{admin/layout :: head('Users')}"></head>
+<body>
+    <nav th:replace="~{admin/layout :: sidebar('users')}"></nav>
+    <div th:replace="~{admin/layout :: toasts}"></div>
+
+    <div class="main">
+        <div class="topbar">
+            <h1>User Management</h1>
+            <div class="topbar-actions">
+                <button class="btn btn-primary" onclick="openCreateModal()" id="createBtn" disabled>+ New User</button>
+            </div>
+        </div>
+        <div class="content">
+            <!-- Domain Selector -->
+            <div class="card" style="margin-bottom:24px;">
+                <div class="card-body" style="padding:16px 24px;">
+                    <div style="display:flex;align-items:center;gap:16px;">
+                        <label style="font-weight:600;white-space:nowrap;">Select Domain:</label>
+                        <select class="form-control" id="domainSelect" onchange="onDomainChange()" style="max-width:400px;">
+                            <option value="">-- Select a domain --</option>
+                        </select>
+                        <span style="font-size:13px;color:var(--text-light)" id="userTotal"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Users Table -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>Users</h3>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <button class="btn btn-outline btn-sm" onclick="prevPage()" id="prevBtn" disabled>← Prev</button>
+                        <span style="font-size:13px;color:var(--text-light)" id="pageInfo"></span>
+                        <button class="btn btn-outline btn-sm" onclick="nextPage()" id="nextBtn" disabled>Next →</button>
+                    </div>
+                </div>
+                <div class="card-body" style="padding:0">
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>MFA</th>
+                                    <th>Status</th>
+                                    <th>Last Login</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTable">
+                                <tr><td colspan="7"><div class="empty-state"><div class="empty-icon">👥</div><h4>Select a domain</h4><p>Choose a domain to see its users</p></div></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create User Modal -->
+    <div class="modal-backdrop" id="createModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Create New User</h3>
+                <button class="modal-close" onclick="closeModal('createModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="createUserForm">
+                    <div class="form-group">
+                        <label>Email *</label>
+                        <input type="email" class="form-control" id="userEmail" placeholder="user@example.com" required/>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>First Name *</label>
+                            <input type="text" class="form-control" id="firstName" placeholder="John" required/>
+                        </div>
+                        <div class="form-group">
+                            <label>Last Name *</label>
+                            <input type="text" class="form-control" id="lastName" placeholder="Doe" required/>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Phone Number</label>
+                            <input type="tel" class="form-control" id="phoneNumber" placeholder="+1234567890"/>
+                        </div>
+                        <div class="form-group">
+                            <label>Role</label>
+                            <select class="form-control" id="userRole">
+                                <option value="USER">User</option>
+                                <option value="DOMAIN_ADMIN">Domain Admin</option>
+                                <option value="GUEST">Guest</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>MFA Enabled</label>
+                            <select class="form-control" id="mfaEnabled">
+                                <option value="false">No</option>
+                                <option value="true">Yes</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Preferred MFA Method</label>
+                            <select class="form-control" id="mfaMethod">
+                                <option value="">None</option>
+                                <option value="TOTP">TOTP (Authenticator App)</option>
+                                <option value="EMAIL">Email OTP</option>
+                                <option value="SMS">SMS OTP</option>
+                                <option value="WEBAUTHN">WebAuthn (Passkey)</option>
+                            </select>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal('createModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="createUser()">Create User</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentDomainId = null;
+        let currentPage = 0;
+        let totalPages = 0;
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3000);
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+
+        function formatDateTime(dateStr) {
+            if (!dateStr) return 'Never';
+            return new Date(dateStr).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+
+        function openCreateModal() { document.getElementById('createModal').classList.add('show'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+        async function loadDomains() {
+            try {
+                const res = await fetch('/api/domains');
+                if (!res.ok) throw new Error('Failed');
+                const domains = await res.json();
+                const select = document.getElementById('domainSelect');
+                domains.forEach(d => {
+                    const opt = document.createElement('option');
+                    opt.value = d.id;
+                    opt.textContent = `${d.displayName} (${d.domainName})`;
+                    select.appendChild(opt);
+                });
+
+                // Auto-select from URL param
+                const params = new URLSearchParams(window.location.search);
+                if (params.get('domain')) {
+                    select.value = params.get('domain');
+                    onDomainChange();
+                }
+            } catch (err) {
+                showToast('Failed to load domains', 'error');
+            }
+        }
+
+        function onDomainChange() {
+            currentDomainId = document.getElementById('domainSelect').value;
+            currentPage = 0;
+            document.getElementById('createBtn').disabled = !currentDomainId;
+            if (currentDomainId) {
+                loadUsers();
+            } else {
+                document.getElementById('usersTable').innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">👥</div><h4>Select a domain</h4></div></td></tr>';
+                document.getElementById('userTotal').textContent = '';
+            }
+        }
+
+        async function loadUsers() {
+            if (!currentDomainId) return;
+            const tbody = document.getElementById('usersTable');
+            tbody.innerHTML = '<tr><td colspan="7" class="loading"><span class="spinner"></span>Loading...</td></tr>';
+
+            try {
+                const res = await fetch(`/api/domains/${currentDomainId}/users?page=${currentPage}&size=20`);
+                if (!res.ok) throw new Error('Failed');
+                const data = await res.json();
+                const users = data.content || [];
+                totalPages = data.totalPages || 0;
+
+                document.getElementById('userTotal').textContent = `${data.totalElements || 0} user(s)`;
+                document.getElementById('pageInfo').textContent = totalPages > 0 ? `Page ${currentPage + 1} of ${totalPages}` : '';
+                document.getElementById('prevBtn').disabled = currentPage === 0;
+                document.getElementById('nextBtn').disabled = currentPage >= totalPages - 1;
+
+                if (users.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">👥</div><h4>No users found</h4><p>Create the first user in this domain</p></div></td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = users.map(u => `
+                    <tr>
+                        <td>
+                            <strong>${u.displayName || (u.firstName + ' ' + u.lastName)}</strong>
+                        </td>
+                        <td style="font-size:13px">${u.email}</td>
+                        <td><span class="badge badge-info">${u.role || 'USER'}</span></td>
+                        <td>${u.mfaEnabled
+                            ? `<span class="badge badge-success">${u.preferredMfaMethod || 'Enabled'}</span>`
+                            : '<span class="badge badge-secondary">Disabled</span>'}</td>
+                        <td><span class="badge ${u.status === 'ACTIVE' ? 'badge-success' : 'badge-danger'}">${u.status}</span></td>
+                        <td style="font-size:13px;color:var(--text-light)">${formatDateTime(u.lastLoginAt)}</td>
+                        <td>
+                            ${u.status === 'ACTIVE'
+                                ? `<button class="btn btn-warning btn-sm" onclick="deactivateUser('${u.id}')">Suspend</button>`
+                                : `<button class="btn btn-success btn-sm" onclick="activateUser('${u.id}')">Activate</button>`
+                            }
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--danger);">Failed to load users</td></tr>';
+                showToast('Failed to load users', 'error');
+            }
+        }
+
+        function prevPage() { if (currentPage > 0) { currentPage--; loadUsers(); } }
+        function nextPage() { if (currentPage < totalPages - 1) { currentPage++; loadUsers(); } }
+
+        async function createUser() {
+            const data = {
+                email: document.getElementById('userEmail').value.trim(),
+                firstName: document.getElementById('firstName').value.trim(),
+                lastName: document.getElementById('lastName').value.trim(),
+                phoneNumber: document.getElementById('phoneNumber').value.trim() || null,
+                role: document.getElementById('userRole').value,
+                mfaEnabled: document.getElementById('mfaEnabled').value === 'true',
+                preferredMfaMethod: document.getElementById('mfaMethod').value || null
+            };
+
+            if (!data.email || !data.firstName || !data.lastName) {
+                showToast('Please fill in all required fields', 'error');
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/domains/${currentDomainId}/users`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.error || 'Failed to create user');
+                }
+                closeModal('createModal');
+                document.getElementById('createUserForm').reset();
+                showToast('User created successfully', 'success');
+                loadUsers();
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+
+        async function deactivateUser(userId) {
+            if (!confirm('Suspend this user?')) return;
+            try {
+                const res = await fetch(`/api/domains/${currentDomainId}/users/${userId}/deactivate`, { method: 'POST' });
+                if (!res.ok) throw new Error('Failed');
+                showToast('User suspended', 'success');
+                loadUsers();
+            } catch (err) { showToast('Failed to suspend user', 'error'); }
+        }
+
+        async function activateUser(userId) {
+            try {
+                const res = await fetch(`/api/domains/${currentDomainId}/users/${userId}/activate`, { method: 'POST' });
+                if (!res.ok) throw new Error('Failed');
+                showToast('User activated', 'success');
+                loadUsers();
+            } catch (err) { showToast('Failed to activate user', 'error'); }
+        }
+
+        loadDomains();
+    </script>
+</body>
+</html>

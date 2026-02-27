@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{admin/layout :: head('Applications')}"></head>
+<body>
+    <nav th:replace="~{admin/layout :: sidebar('apps')}"></nav>
+    <div th:replace="~{admin/layout :: toasts}"></div>
+
+    <div class="main">
+        <div class="topbar">
+            <h1>Application Management</h1>
+            <div class="topbar-actions">
+                <button class="btn btn-primary" onclick="openCreateModal()">+ Register App</button>
+            </div>
+        </div>
+        <div class="content">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Registered Applications</h3>
+                    <span style="font-size:13px;color:var(--text-light)" id="appTotal"></span>
+                </div>
+                <div class="card-body" style="padding:0">
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>App Name</th>
+                                    <th>Description</th>
+                                    <th>Rate Limit</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="appsTable">
+                                <tr><td colspan="6" class="loading"><span class="spinner"></span>Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Register App Modal -->
+    <div class="modal-backdrop" id="createModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Register New Application</h3>
+                <button class="modal-close" onclick="closeModal('createModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="createAppForm">
+                    <div class="form-group">
+                        <label>App Name *</label>
+                        <input type="text" class="form-control" id="appName" placeholder="My Application" required/>
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <input type="text" class="form-control" id="appDescription" placeholder="Optional description"/>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Rate Limit / Minute</label>
+                            <input type="number" class="form-control" id="rateLimitMin" placeholder="60" value="60"/>
+                        </div>
+                        <div class="form-group">
+                            <label>Rate Limit / Hour</label>
+                            <input type="number" class="form-control" id="rateLimitHour" placeholder="1000" value="1000"/>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal('createModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="registerApp()">Register</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Key Modal -->
+    <div class="modal-backdrop" id="apiKeyModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>🔑 API Key Generated</h3>
+                <button class="modal-close" onclick="closeModal('apiKeyModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:14px;margin-bottom:16px;">
+                    <p style="font-size:14px;color:#92400e;font-weight:600;">⚠️ Save this API key now. It cannot be retrieved later.</p>
+                </div>
+                <div class="form-group">
+                    <label>API Key</label>
+                    <div style="display:flex;gap:8px;">
+                        <input type="text" class="form-control" id="apiKeyValue" readonly style="font-family:monospace;font-size:13px;background:#f8fafc;"/>
+                        <button class="btn btn-outline" onclick="copyApiKey()">📋 Copy</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="closeModal('apiKeyModal')">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3000);
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+
+        function openCreateModal() { document.getElementById('createModal').classList.add('show'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+        function copyApiKey() {
+            const input = document.getElementById('apiKeyValue');
+            navigator.clipboard.writeText(input.value).then(() => showToast('API key copied to clipboard', 'success'));
+        }
+
+        function showApiKey(apiKey) {
+            document.getElementById('apiKeyValue').value = apiKey;
+            document.getElementById('apiKeyModal').classList.add('show');
+        }
+
+        async function loadApps() {
+            try {
+                const res = await fetch('/apps/v1/list');
+                if (!res.ok) throw new Error('Failed');
+                const apps = await res.json();
+                document.getElementById('appTotal').textContent = `${apps.length} app(s)`;
+
+                const tbody = document.getElementById('appsTable');
+                if (apps.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">📱</div><h4>No apps registered</h4><p>Register your first application to get started</p></div></td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = apps.map(a => `
+                    <tr>
+                        <td><strong>${a.name}</strong><br><small style="color:var(--text-light)">${a.id.substring(0,8)}...</small></td>
+                        <td style="font-size:13px;color:var(--text-light);max-width:200px;overflow:hidden;text-overflow:ellipsis;">${a.description || '-'}</td>
+                        <td style="font-size:13px">${a.rateLimitPerMinute || 60}/min · ${a.rateLimitPerHour || 1000}/hr</td>
+                        <td><span class="badge ${a.active ? 'badge-success' : 'badge-danger'}">${a.active ? 'Active' : 'Inactive'}</span></td>
+                        <td style="font-size:13px;color:var(--text-light)">${formatDate(a.createdAt)}</td>
+                        <td style="white-space:nowrap;">
+                            <button class="btn btn-outline btn-sm" onclick="regenerateKey('${a.id}')" title="Regenerate API Key">🔑</button>
+                            ${a.active
+                                ? `<button class="btn btn-warning btn-sm" onclick="deactivateApp('${a.id}')">Deactivate</button>`
+                                : `<button class="btn btn-success btn-sm" onclick="activateApp('${a.id}')">Activate</button>`
+                            }
+                            <button class="btn btn-danger btn-sm" onclick="deleteApp('${a.id}', '${a.name}')">Delete</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                document.getElementById('appsTable').innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--danger);">Failed to load applications</td></tr>';
+                showToast('Failed to load applications', 'error');
+            }
+        }
+
+        async function registerApp() {
+            const data = {
+                name: document.getElementById('appName').value.trim(),
+                description: document.getElementById('appDescription').value.trim() || null,
+                rateLimitPerMinute: parseInt(document.getElementById('rateLimitMin').value) || 60,
+                rateLimitPerHour: parseInt(document.getElementById('rateLimitHour').value) || 1000
+            };
+
+            if (!data.name) {
+                showToast('App name is required', 'error');
+                return;
+            }
+
+            try {
+                const res = await fetch('/apps/v1/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (!res.ok) {
+                    if (res.status === 409) throw new Error('App name already exists');
+                    throw new Error('Failed to register app');
+                }
+                const result = await res.json();
+                closeModal('createModal');
+                document.getElementById('createAppForm').reset();
+                showToast('App registered successfully', 'success');
+                if (result.apiKey) showApiKey(result.apiKey);
+                loadApps();
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+
+        async function deactivateApp(id) {
+            if (!confirm('Deactivate this app? Its API key will stop working.')) return;
+            try {
+                const res = await fetch(`/apps/v1/${id}/deactivate`, { method: 'POST' });
+                if (!res.ok) throw new Error('Failed');
+                showToast('App deactivated', 'success');
+                loadApps();
+            } catch (err) { showToast('Failed to deactivate app', 'error'); }
+        }
+
+        async function activateApp(id) {
+            try {
+                const res = await fetch(`/apps/v1/${id}/activate`, { method: 'POST' });
+                if (!res.ok) throw new Error('Failed');
+                showToast('App activated', 'success');
+                loadApps();
+            } catch (err) { showToast('Failed to activate app', 'error'); }
+        }
+
+        async function deleteApp(id, name) {
+            if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+            try {
+                const res = await fetch(`/apps/v1/${id}`, { method: 'DELETE' });
+                if (!res.ok) throw new Error('Failed');
+                showToast('App deleted', 'success');
+                loadApps();
+            } catch (err) { showToast('Failed to delete app', 'error'); }
+        }
+
+        async function regenerateKey(id) {
+            if (!confirm('Regenerate API key? The old key will be immediately invalidated.')) return;
+            try {
+                const res = await fetch(`/apps/v1/${id}/regenerate-key`, { method: 'POST' });
+                if (!res.ok) throw new Error('Failed');
+                const newKey = await res.text();
+                showApiKey(newKey);
+                showToast('API key regenerated', 'success');
+            } catch (err) { showToast('Failed to regenerate key', 'error'); }
+        }
+
+        loadApps();
+    </script>
+</body>
+</html>
