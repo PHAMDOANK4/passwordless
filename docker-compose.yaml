@@ -1,18 +1,69 @@
-version: '3.2'
+version: '3.8'
 
 services:
+  mysql:
+    image: mysql:8.0
+    container_name: passwordless-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-changeme}
+      MYSQL_DATABASE: passwordless
+      MYSQL_USER: passwordless
+      MYSQL_PASSWORD: ${DB_PASSWORD:-changeme}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+    networks:
+      - passwordless-network
+
   passwordless-service:
     image: maximthomas/passwordless
+    container_name: passwordless-service
     build:
       context: .
     environment:
-      #twilio env vars
-      TWILIO_MESSAGING_SERVICE_SID: foo
-      TWILIO_ACCOUNT_SID: bar
-      TWILIO_AUTH_TOKEN: auth_token
+      # Database configuration
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/passwordless?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8
+      SPRING_DATASOURCE_USERNAME: passwordless
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-changeme}
+      
+      # Twilio SMS configuration (optional)
+      TWILIO_MESSAGING_SERVICE_SID: ${TWILIO_MESSAGING_SERVICE_SID:-}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
 
-      #mail env vars
-      MAIL_USERNAME: username@gmail.com
-      MAIL_PASSWORD: password
+      # Email configuration
+      SPRING_MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
+      SPRING_MAIL_PORT: ${MAIL_PORT:-587}
+      SPRING_MAIL_USERNAME: ${MAIL_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-true}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: ${MAIL_SMTP_STARTTLS_ENABLE:-true}
+      
+      # TOTP configuration
+      TOTP_ISSUER: ${TOTP_ISSUER:-passwordless.example.com}
+      TOTP_ISSUER_LABEL: ${TOTP_ISSUER_LABEL:-Passwordless Service}
+      
+      # WebAuthn configuration
+      WEBAUTHN_SETTINGS_RPID: ${WEBAUTHN_RPID:-localhost}
+      WEBAUTHN_SETTINGS_ORIGIN: ${WEBAUTHN_ORIGIN:-http://localhost:8080}
     ports:
       - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - passwordless-network
+    restart: unless-stopped
+
+volumes:
+  mysql-data:
+    driver: local
+
+networks:
+  passwordless-network:
+    driver: bridge

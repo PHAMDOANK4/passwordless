@@ -41,7 +41,7 @@ otp:
       name: "Dummy SMS OTP Setting"
       messageTitle: "Acme LLC"
       messageTemplate: "Confirmation code: ${otp}"
-      otpLength: 5
+      otpLength: 6
       useLetters: false
       useDigits: true
       ttlMinutes: 3
@@ -51,7 +51,7 @@ otp:
       name: "Twilio SMS OTP Setting"
       messageTitle: "Acme LLC"
       messageTemplate: "Confirmation code: ${otp}"
-      otpLength: 5
+      otpLength: 6
       useLetters: false
       useDigits: true
       ttlMinutes: 3
@@ -78,3 +78,20 @@ webauthn:
 totp:
   issuer: "acme.com"
   issuerLabel: "Acme LLC"
+
+# Swagger/OpenAPI Configuration
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui
+    enabled: true
+    operationsSorter: method
+    tagsSorter: alpha
+    tryItOutEnabled: true
+    filter: true
+    displayRequestDuration: true
+  show-actuator: true
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json

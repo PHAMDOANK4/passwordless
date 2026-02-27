@@ -9,9 +9,12 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class VerifyOtpRequest {
-    @NotEmpty
+    // Optional: for backward compatibility with sessionId-based verification
     public String sessionId;
 
     @NotEmpty
     public String otp;
+
+    // Optional: for destination-based verification (like Google/Microsoft)
+    public String destination;
 }

@@ -50,7 +50,7 @@ public class OtpService {
 
         validateFrequentSending(destination);
 
-        otpSender.sendOTP(destination, messageTitle, messageBody);
+        otpSender.sendOTP(destination, messageBody, messageTitle);
         sentOTP.setAttempts(otpConfiguration.getAttempts());
         sentOtpRepository.save(sentOTP);
 
@@ -81,6 +81,61 @@ public class OtpService {
         return sub.replace(messageTemplate);
     }
 
+    /**
+     * Verify OTP by destination and OTP code (Google/Microsoft style)
+     * @param destination Email or phone number
+     * @param otp OTP code
+     * @return Verification result
+     */
+    public VerifyOtpResult verifyByDestination(String destination, String otp) throws NotFoundException, OtpVerifyAttemptsExceeded {
+        List<SentOtp> sentOtps = sentOtpRepository.findByDestinationAndOtpOrderByLastSentAtDesc(destination, otp);
+        
+        if(sentOtps.isEmpty()) {
+            log.warn("No OTP found for destination {} with code {}", destination, otp);
+            throw new SessionNotFoundException();
+        }
+
+        // Find the first non-expired OTP with attempts remaining
+        SentOtp sentOtp = null;
+        for (SentOtp candidate : sentOtps) {
+            if (candidate.getExpireTime() > System.currentTimeMillis() && candidate.getAttempts() > 0) {
+                sentOtp = candidate;
+                break;
+            }
+        }
+
+        if (sentOtp == null) {
+            log.warn("No valid OTP found for destination {} - all expired or no attempts remaining", destination);
+            throw new SessionNotFoundException();
+        }
+
+        if(sentOtp.getAttempts() == 0) {
+            throw new OtpVerifyAttemptsExceeded();
+        }
+
+        boolean result = sentOtp.getExpireTime() > System.currentTimeMillis()
+                && sentOtp.getOtp().equals(otp);
+
+        Integer remainingAttempts = null;
+        if(!result) {
+            remainingAttempts = sentOtp.getAttempts() - 1;
+            remainingAttempts = remainingAttempts < 0 ? 0 : remainingAttempts;
+            sentOtp.setAttempts(remainingAttempts);
+            sentOtpRepository.save(sentOtp);
+        } else {
+            // On successful verification, delete the OTP to prevent reuse
+            sentOtpRepository.delete(sentOtp);
+        }
+
+        return new VerifyOtpResult(result, remainingAttempts);
+    }
+
+    /**
+     * Verify OTP by sessionId and OTP code (legacy method for backward compatibility)
+     * @param sessionId Session ID
+     * @param otp OTP code
+     * @return Verification result
+     */
     public VerifyOtpResult verify(String sessionId, String otp) throws NotFoundException, OtpVerifyAttemptsExceeded {
         final UUID sessionUUID;
         try {

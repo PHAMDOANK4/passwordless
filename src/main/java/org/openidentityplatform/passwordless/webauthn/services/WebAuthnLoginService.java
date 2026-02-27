@@ -33,8 +33,10 @@ import com.webauthn4j.data.client.challenge.DefaultChallenge;
 import com.webauthn4j.server.ServerProperty;
 import com.webauthn4j.validator.exception.ValidationException;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.openidentityplatform.passwordless.webauthn.configuration.WebAuthnConfiguration;
 import org.openidentityplatform.passwordless.webauthn.models.AssertRequest;
+import org.openidentityplatform.passwordless.webauthn.repositories.UserAuthenticatorRDBMSRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -43,6 +45,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
+@Slf4j
 @Service
 public class WebAuthnLoginService {
 
@@ -51,10 +54,13 @@ public class WebAuthnLoginService {
     private final WebAuthnManager webAuthnManager;
 
     private final WebAuthnConfiguration webAuthnConfiguration;
+    
+    private final UserAuthenticatorRDBMSRepository userAuthenticatorRepository;
 
-    public WebAuthnLoginService(WebAuthnConfiguration webAuthnConfiguration) {
+    public WebAuthnLoginService(WebAuthnConfiguration webAuthnConfiguration, UserAuthenticatorRDBMSRepository userAuthenticatorRepository) {
         webAuthnManager = WebAuthnManager.createNonStrictWebAuthnManager();
         this.webAuthnConfiguration = webAuthnConfiguration;
+        this.userAuthenticatorRepository = userAuthenticatorRepository;
     }
 
     public PublicKeyCredentialRequestOptions requestCredentials(String username, HttpServletRequest request,
@@ -73,16 +79,19 @@ public class WebAuthnLoginService {
             allowCredentials.add(publicKeyCredentialDescriptor);
         }
 
+        // Use allowCredentials list if not empty, otherwise pass null to allow any authenticator
+        List<PublicKeyCredentialDescriptor> credentialsToUse = allowCredentials.isEmpty() ? null : allowCredentials;
+        
         PublicKeyCredentialRequestOptions publicKeyCredentialRequestOptions = new PublicKeyCredentialRequestOptions(
                 challenge, webAuthnConfiguration.getTimeout(),
                 webAuthnConfiguration.getRpId(),
-                null, userVerificationRequirement, null
+                credentialsToUse, userVerificationRequirement, null
         );
 
         return publicKeyCredentialRequestOptions;
     }
 
-    public AuthenticatorData<?> processCredentials(HttpServletRequest request, AssertRequest assertRequest, Set<CredentialRecord> credentialRecords) {
+    public AuthenticatorData<?> processCredentials(String username, HttpServletRequest request, AssertRequest assertRequest, Set<CredentialRecord> credentialRecords) {
 
         byte[] id = Base64.getUrlDecoder().decode(assertRequest.getId());
 
@@ -109,6 +118,10 @@ public class WebAuthnLoginService {
                 Objects.deepEquals(cr.getAttestedCredentialData().getCredentialId(), id))
                 .findFirst().orElse(null);
 
+        if (credentialRecord == null) {
+            throw new IllegalArgumentException("Credential not found for the provided credential ID. User may need to register this authenticator.");
+        }
+
         AuthenticationParameters authenticationParameters =
                 new AuthenticationParameters(
                         serverProperty,
@@ -131,11 +144,35 @@ public class WebAuthnLoginService {
             // If you would like to handle WebAuthn data validation error, please catch ValidationException
             throw e;
         }
-// please update the counter of the authenticator record TODO
-//        updateCounter(
-//                authenticationData.getCredentialId(),
-//                authenticationData.getAuthenticatorData().getSignCount()
-//        );
+        
+        // Update the counter of the authenticator record after successful authentication
+        long newCounter = authenticationData.getAuthenticatorData().getSignCount();
+        long storedCounter = credentialRecord.getCounter();
+        
+        log.info("Counter validation - Stored: {}, Received: {}", storedCounter, newCounter);
+        
+        // Validate counter (detect cloned authenticators and replay attacks)
+        // Note: Some authenticators (especially platform authenticators like Touch ID, Windows Hello)
+        // may not increment the counter on every use. This is valid behavior.
+        // We only reject if the counter DECREASES, which indicates a replay attack.
+        if (newCounter > 0 && storedCounter > 0) {
+            if (newCounter < storedCounter) {
+                // Counter decreased - this is a security issue (replay attack or cloned authenticator)
+                log.error("SECURITY ALERT: Authenticator counter decreased! Stored: {}, Received: {}. This indicates a replay attack or cloned authenticator.", 
+                        storedCounter, newCounter);
+                throw new IllegalStateException("Authenticator counter decreased. This indicates a replay attack or cloned authenticator.");
+            } else if (newCounter == storedCounter) {
+                // Counter stayed the same - this is acceptable for platform authenticators
+                log.info("Counter did not increase (stored: {}, received: {}). This is normal for platform authenticators (Touch ID, Windows Hello, etc.)", 
+                        storedCounter, newCounter);
+            } else {
+                // Counter increased - this is the expected behavior
+                log.info("Counter increased successfully from {} to {}", storedCounter, newCounter);
+            }
+        }
+        
+        // Update counter in database
+        userAuthenticatorRepository.updateCounter(username, id, newCounter);
 
         return authenticationData.getAuthenticatorData();
 

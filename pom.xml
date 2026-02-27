@@ -38,11 +38,11 @@
         <webauthn4j.version>0.24.0.RELEASE</webauthn4j.version>
         <java-totp.version>0.4.0</java-totp.version>
         <zxing.version>3.5.1</zxing.version>
-        <springdoc.version>1.6.15</springdoc.version>
         <nodejs.version>v16.16.0</nodejs.version>
         <yarn.version>v1.22.19</yarn.version>
         <guava.version>32.0.0-jre</guava.version>
         <hibernate-validator.version>8.0.0.Final</hibernate-validator.version>
+        <bucket4j.version>8.0.1</bucket4j.version>
     </properties>
 
     <dependencies>
@@ -54,6 +54,10 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-thymeleaf</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -62,6 +66,10 @@
         <dependency>
             <groupId>com.fasterxml.jackson.dataformat</groupId>
             <artifactId>jackson-dataformat-yaml</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
         </dependency>
         <dependency>
             <groupId>org.hibernate.validator</groupId>
@@ -127,8 +135,15 @@
         </dependency>
         <dependency>
             <groupId>org.springdoc</groupId>
-            <artifactId>springdoc-openapi-ui</artifactId>
-            <version>${springdoc.version}</version>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>2.6.0</version>
+        </dependency>
+        
+        <!--rate limiting-->
+        <dependency>
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j-core</artifactId>
+            <version>${bucket4j.version}</version>
         </dependency>
 
         <!--dev tools-->
@@ -158,6 +173,11 @@
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

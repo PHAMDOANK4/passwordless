@@ -43,7 +43,7 @@ import java.util.Set;
 @Slf4j
 @RestController
 @RequestMapping("/webauthn/v1")
-@CrossOrigin(origins = "http://localhost:1234",
+@CrossOrigin(origins = {"http://localhost:1234", "http://localhost:8080", "https://authentication.k4.vn"},
         allowCredentials = "true"
         )
 public class WebAuthnController {
@@ -121,7 +121,7 @@ public class WebAuthnController {
 
         Set<CredentialRecord> authenticators = userAuthenticatorRepository.load(username);
 
-        AuthenticatorData<?> authenticatorData = webAuthnLoginService.processCredentials(request, assertRequest, authenticators);
+        AuthenticatorData<?> authenticatorData = webAuthnLoginService.processCredentials(username, request, assertRequest, authenticators);
 
         return Collections.singletonMap("response", authenticatorData);
     }

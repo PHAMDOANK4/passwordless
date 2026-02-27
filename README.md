@@ -4,11 +4,23 @@
 [![License](https://img.shields.io/github/license/maximthomas/passwordless)](https://github.com/maximthomas/passwordless/blob/master/LICENSE)
 ![CodeQL](https://github.com/maximthomas/passwordless/workflows/CodeQL/badge.svg)
 
-Helps to authenticate users without providing password.
+A centralized authentication service that provides passwordless authentication methods for your applications.
+
+## 📚 Documentation
+
+- **[API Documentation](docs/API_DOCUMENTATION.md)** - Complete API reference with examples
+- **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment instructions
+- **[Quick Start](#quick-start)** - Get started in 5 minutes
 
 # Table of contents
 
 - [How it works](#how-it-works)
+- [Centralized Authentication System](#centralized-authentication-system)
+  * [Overview](#overview)
+  * [App Registration](#app-registration)
+  * [API Authentication](#api-authentication)
+  * [Rate Limiting](#rate-limiting)
+  * [Audit Logging](#audit-logging)
 - [Quick start](#quick-start)
 - [One Time Password Authentication](#one-time-password-authentication)
   * [Introduction](#introduction)
@@ -30,18 +42,191 @@ Helps to authenticate users without providing password.
 
 
 # How it works
-So, you have a site or a web service that needs passwordless authentication or needs second-factor authentication.
-Passwordless service is the simpler way to implement it. You just install it and integrate it with your site.
-Passwordless service is used for authentication with either the
-[one time password](https://en.wikipedia.org/wiki/One-time_password) (OTP) or using the
-[Time-based one time password](https://en.wikipedia.org/wiki/Time-based_one-time_password) (TOTP) or using the
-[Web Authentication](https://en.wikipedia.org/wiki/WebAuthn) (WebAuthn) protocol.
+This is a **centralized authentication service** that allows external applications to leverage passwordless authentication methods without implementing them from scratch. 
 
-You just call the Passwordless API service and in the case of OTP authentication service generates, sends, and validates a one-time password.
-In the case of WebAuthn, the Passwordless service registers or authenticates the user's public key.
+Applications register with the service, receive an API key, and can then use any of the supported authentication methods:
+- [One Time Password (OTP)](https://en.wikipedia.org/wiki/One-time_password) - Receive codes via SMS or Email
+- [Time-based One Time Password (TOTP)](https://en.wikipedia.org/wiki/Time-based_one-time_password) - Use with authenticator apps like Google Authenticator
+- [Web Authentication (WebAuthn/FIDO2)](https://en.wikipedia.org/wiki/WebAuthn) - Biometric and security key authentication
 
 You can also use it as a second authentication factor (2FA) alongside login and password or to authorize essential
 operations (for example, change password, or confirm payment) for the already authenticated user.
+
+# Centralized Authentication System
+
+## Overview
+
+The Passwordless service now operates as a centralized authentication platform that allows external systems (e.g., e-commerce stores, banking apps, SaaS platforms) to integrate passwordless authentication without building it themselves.
+
+### Key Features:
+- **API Key Authentication**: Secure access control using API keys with BCrypt hashing
+- **Rate Limiting**: Per-app rate limits (configurable per minute and per hour)
+- **Audit Logging**: Track all authentication attempts, API requests, and security events
+- **Multi-tenancy**: Support multiple apps with isolated configurations
+- **RESTful API**: Easy integration with any platform
+
+## App Registration
+
+External applications must register with the service to obtain an API key.
+
+### Register a New App
+
+```bash
+curl -X POST http://localhost:8080/apps/v1/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "My Clothing Store",
+    "description": "E-commerce platform for fashion",
+    "rateLimitPerMinute": 100,
+    "rateLimitPerHour": 5000
+  }'
+```
+
+**Response:**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "My Clothing Store",
+  "description": "E-commerce platform for fashion",
+  "apiKey": "pk_aGVsbG93b3JsZHRoaXNpc2F0ZXN0a2V5",
+  "active": true,
+  "createdAt": "2026-01-21T17:00:00Z",
+  "rateLimitPerMinute": 100,
+  "rateLimitPerHour": 5000
+}
+```
+
+**Important:** Store the `apiKey` securely - it's only shown once during registration!
+
+### List All Registered Apps
+
+```bash
+curl -X GET http://localhost:8080/apps/v1/list
+```
+
+### Get App Details
+
+```bash
+curl -X GET http://localhost:8080/apps/v1/{appId}
+```
+
+### Deactivate an App
+
+```bash
+curl -X POST http://localhost:8080/apps/v1/{appId}/deactivate
+```
+
+### Regenerate API Key
+
+```bash
+curl -X POST http://localhost:8080/apps/v1/{appId}/regenerate-key
+```
+
+## API Authentication
+
+All authentication API requests must include the API key in the `X-API-Key` header:
+
+```bash
+curl -X POST http://localhost:8080/otp/v1/send \
+  -H "X-API-Key: pk_aGVsbG93b3JsZHRoaXNpc2F0ZXN0a2V5" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sender": "sms",
+    "destination": "+1234567890"
+  }'
+```
+
+### Authentication Flow for External Apps
+
+1. **Register your app** to get an API key
+2. **Store the API key** securely in your backend
+3. **Make API calls** with the `X-API-Key` header
+4. **Handle responses** and integrate with your authentication flow
+
+### Example: E-commerce Store Integration
+
+```javascript
+// Backend code (Node.js example)
+const API_KEY = process.env.PASSWORDLESS_API_KEY;
+const PASSWORDLESS_URL = 'http://localhost:8080';
+
+async function sendOTP(phoneNumber) {
+  const response = await fetch(`${PASSWORDLESS_URL}/otp/v1/send`, {
+    method: 'POST',
+    headers: {
+      'X-API-Key': API_KEY,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      sender: 'sms',
+      destination: phoneNumber
+    })
+  });
+  
+  return await response.json();
+}
+
+async function verifyOTP(operationId, otp) {
+  const response = await fetch(`${PASSWORDLESS_URL}/otp/v1/verify`, {
+    method: 'POST',
+    headers: {
+      'X-API-Key': API_KEY,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      sessionId: operationId,
+      otp: otp
+    })
+  });
+  
+  return await response.json();
+}
+```
+
+## Rate Limiting
+
+Each app has configurable rate limits to prevent abuse:
+
+- **Per-Minute Limit**: Maximum requests per minute (default: 60)
+- **Per-Hour Limit**: Maximum requests per hour (default: 1000)
+
+When rate limits are exceeded, the API returns HTTP 429 (Too Many Requests):
+
+```json
+{
+  "error": "Rate limit exceeded. Please try again later."
+}
+```
+
+Rate limits are enforced independently per app and reset automatically.
+
+## Audit Logging
+
+All authentication attempts and API requests are logged for security monitoring and debugging.
+
+### View Audit Logs
+
+```bash
+# Get all audit logs (paginated)
+curl -X GET "http://localhost:8080/apps/v1/audit/logs?page=0&size=20"
+
+# Get logs for a specific app
+curl -X GET "http://localhost:8080/apps/v1/audit/logs/app/{appId}?page=0&size=20"
+
+# Get logs by event type
+curl -X GET "http://localhost:8080/apps/v1/audit/logs/event/AUTHENTICATION?page=0&size=20"
+
+# Get logs in a time range
+curl -X GET "http://localhost:8080/apps/v1/audit/logs/range?start=2026-01-21T00:00:00Z&end=2026-01-21T23:59:59Z"
+
+# Get request count statistics
+curl -X GET "http://localhost:8080/apps/v1/audit/stats/{appId}?hours=24"
+```
+
+### Event Types:
+- `AUTHENTICATION`: API key authentication attempts
+- `API_REQUEST`: Successful API calls
+- `RATE_LIMIT_EXCEEDED`: Rate limit violations
 
 
 # Quick start

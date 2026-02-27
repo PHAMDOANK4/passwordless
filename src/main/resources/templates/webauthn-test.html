@@ -2,65 +2,415 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebAuthn Test - FIDO2 Passwordless Authentication</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e8ed;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+
         .buttons {
-            margin: 4px 0;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        button {
+            padding: 16px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        #register {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        #register:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        #login {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        #login:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(245, 87, 108, 0.3);
+        }
+
+        .log-container {
+            margin-top: 30px;
+            background: #f7fafc;
+            border-radius: 10px;
+            padding: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .log-header h3 {
+            color: #333;
+            font-size: 16px;
+        }
+
+        .clear-log {
+            background: #e1e8ed;
+            color: #666;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+
+        .clear-log:hover {
+            background: #cbd5e0;
+        }
+
+        .log-entry {
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .log-success {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .log-error {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .log-info {
+            background: #bee3f8;
+            color: #2c5282;
+        }
+
+        .icon {
+            width: 20px;
+            height: 20px;
+        }
+
+        .fingerprint {
+            text-align: center;
+            margin: 20px 0;
+            opacity: 0.3;
+        }
+
+        .fingerprint svg {
+            width: 80px;
+            height: 80px;
+            fill: #667eea;
+        }
+
+        .info-box {
+            background: #edf2f7;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 25px;
+        }
+
+        .info-box p {
+            color: #4a5568;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
         }
     </style>
 </head>
 <body>
-    <h1>WebAuthn Test</h1>
-    <input id="username" name="username" value="John" />
-    <br>
-    <div class="buttons">
-        <button id="register" value="register" type="button">Register</button>
-        <button id="login" value="login" type="button">Login</button>
-    </div>
-    <script>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 WebAuthn Test</h1>
+            <p>FIDO2 Passwordless Authentication Demo</p>
+            <span class="badge">🛡️ Secure • 🚀 Fast • 🔑 No Passwords</span>
+        </div>
 
-        const apiUrl = "/webauthn/v1"
+        <div class="info-box">
+            <p>
+                <strong>How it works:</strong> Enter a username, click Register to create a credential using your device's biometrics or security key, then Login to authenticate without a password.
+            </p>
+        </div>
+
+        <div class="form-group">
+            <label for="username">👤 Username</label>
+            <input id="username" name="username" value="John" placeholder="Enter your username" autocomplete="username webauthn"/>
+        </div>
+
+        <div class="buttons">
+            <button id="register" type="button">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="8.5" cy="7" r="4"></circle>
+                    <line x1="20" y1="8" x2="20" y2="14"></line>
+                    <line x1="23" y1="11" x2="17" y2="11"></line>
+                </svg>
+                <span>Register</span>
+            </button>
+            <button id="login" type="button">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+                    <polyline points="10 17 15 12 10 7"></polyline>
+                    <line x1="15" y1="12" x2="3" y2="12"></line>
+                </svg>
+                <span>Login</span>
+            </button>
+        </div>
+
+        <div class="fingerprint">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"></path>
+            </svg>
+        </div>
+
+        <div class="log-container">
+            <div class="log-header">
+                <h3>📋 Activity Log</h3>
+                <button class="clear-log" onclick="clearLog()">Clear</button>
+            </div>
+            <div id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        const apiUrl = "/webauthn/v1";
+
+        // Utility functions - defined first to ensure availability
+        function bufferDecode(value) {
+            return Uint8Array.from(atob(value), c => c.charCodeAt(0));
+        }
+
+        function bufferEncode(bytes) {
+            let binary = ''
+            const len = bytes.byteLength;
+            for (let i = 0; i < len; i++) {
+                binary += String.fromCharCode( bytes[ i ] );
+            }
+            return window.btoa( binary ).replace(/\+/g, "-")
+                .replace(/\//g, "_")
+                .replace(/=/g, "");
+        }
+
+        // Logging functions
+        function addLog(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.insertBefore(entry, logDiv.firstChild);
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        // UI state management
+        function setButtonState(button, loading) {
+            if (loading) {
+                button.disabled = true;
+                const span = button.querySelector('span');
+                const originalText = span.textContent;
+                span.setAttribute('data-original', originalText);
+                span.innerHTML = '<span class="spinner"></span>';
+            } else {
+                button.disabled = false;
+                const span = button.querySelector('span');
+                const originalText = span.getAttribute('data-original');
+                if (originalText) {
+                    span.textContent = originalText;
+                }
+            }
+        }
 
         function startRegistration(login) {
+            addLog(`🔄 Starting registration for user: ${login}`, 'info');
+            const registerBtn = document.getElementById('register');
+            setButtonState(registerBtn, true);
+
             const targetUrl = apiUrl + '/register/challenge/' + login;
             fetch(targetUrl, {
                 credentials: 'include'
             })
                 .then((res) => {
-                    res.json().then((challenge) => processRegisterChallenge(challenge)).catch(processError);
+                    if (!res.ok) {
+                        throw new Error(`HTTP error! status: ${res.status}`);
+                    }
+                    res.json().then((challenge) => {
+                        addLog('✅ Challenge received from server', 'success');
+                        processRegisterChallenge(challenge);
+                    }).catch((error) => {
+                        processError(error);
+                        setButtonState(registerBtn, false);
+                    });
                 })
-                .catch(processError);
+                .catch((error) => {
+                    processError(error);
+                    setButtonState(registerBtn, false);
+                });
         }
         document.getElementById("register").onclick = () => {
-            const username =  document.getElementById("username").value
-            startRegistration(username)
+            const username = document.getElementById("username").value.trim();
+            if (!username) {
+                addLog('❌ Please enter a username', 'error');
+                return;
+            }
+            startRegistration(username);
         }
 
         document.getElementById("login").onclick = () => {
-            const username =  document.getElementById("username").value
-            startLogin(username)
+            const username = document.getElementById("username").value.trim();
+            if (!username) {
+                addLog('❌ Please enter a username', 'error');
+                return;
+            }
+            startLogin(username);
         }
 
         function processError(error) {
-            console.log(error)
+            console.error(error);
+            addLog(`❌ Error: ${error.message || error.toString()}`, 'error');
         }
 
         function processRegisterChallenge(challenge) {
-            console.log('received message ', challenge);
+            console.log('received message', challenge);
+            addLog('🔐 Preparing credentials...', 'info');
+            
             challenge.challenge = bufferDecode(challenge.challenge.value);
             challenge.user.id = bufferDecode(challenge.user.id);
-            console.log('converted message ', challenge);
+            console.log('converted message', challenge);
+
+            addLog('👆 Please use your biometric or security key', 'info');
 
             navigator.credentials.create({
                 publicKey: challenge,
             }).then((credential) => {
+                addLog('✅ Credential created successfully', 'success');
                 register(credential);
             }).catch((e) => {
-                    console.log(e.toString());
-                }
-            );
+                addLog(`❌ Credential creation failed: ${e.message}`, 'error');
+                console.error(e);
+                setButtonState(document.getElementById('register'), false);
+            });
         }
         function register(credential) {
+            addLog('📤 Sending credential to server...', 'info');
 
             const attestationObject = new Uint8Array(credential.response.attestationObject);
             const clientDataJSON = new Uint8Array(credential.response.clientDataJSON);
@@ -75,7 +425,8 @@
                     clientDataJSON: bufferEncode(clientDataJSON),
                 },
             };
-            console.log('registering credentials ', postData);
+            console.log('registering credentials', postData);
+            
             const targetUrl = apiUrl + '/register/credential';
             fetch(targetUrl, {
                 method: 'POST',
@@ -86,43 +437,88 @@
                 },
                 body: JSON.stringify(postData),
             }).then(res => {
-                console.log(res)
-            }).catch(processError);
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+                return res.json();
+            }).then(data => {
+                console.log('Registration response:', data);
+                addLog(`🎉 Registration successful! Credential ID: ${data.credentialId.substring(0, 20)}...`, 'success');
+                setButtonState(document.getElementById('register'), false);
+            }).catch((error) => {
+                processError(error);
+                setButtonState(document.getElementById('register'), false);
+            });
         }
 
         function startLogin(login) {
+            addLog(`🔄 Starting login for user: ${login}`, 'info');
+            const loginBtn = document.getElementById('login');
+            setButtonState(loginBtn, true);
+
             const targetUrl = apiUrl + '/login/challenge/' + login;
             fetch(targetUrl, {credentials: 'include'})
                 .then((res) => {
-                    res.json().then((challenge) => processLoginChallenge(challenge)).catch(processError);
+                    if (!res.ok) {
+                        throw new Error(`HTTP error! status: ${res.status}`);
+                    }
+                    res.json().then((challenge) => {
+                        addLog('✅ Login challenge received', 'success');
+                        processLoginChallenge(challenge);
+                    }).catch((error) => {
+                        processError(error);
+                        setButtonState(loginBtn, false);
+                    });
                 })
-                .catch(processError);
+                .catch((error) => {
+                    processError(error);
+                    setButtonState(loginBtn, false);
+                });
         }
 
         function processLoginChallenge(challenge) {
+            addLog('👆 Please authenticate with your biometric or security key', 'info');
 
             challenge.challenge = bufferDecode(challenge.challenge.value);
-            if(challenge.allowCredentials) {
+            
+            // Properly handle allowCredentials - ensure it's an array or undefined
+            if(challenge.allowCredentials && Array.isArray(challenge.allowCredentials)) {
                 challenge.allowCredentials.forEach(allowCredential => {
-                        allowCredential.id = bufferDecode(allowCredential.id);
+                    allowCredential.id = bufferDecode(allowCredential.id);
+                    
+                    // Ensure transports is always an array
+                    if (allowCredential.transports) {
+                        if (typeof allowCredential.transports === 'string') {
+                            // If transports is a string, split it into an array
+                            allowCredential.transports = allowCredential.transports.split(',').map(t => t.trim()).filter(t => t);
+                        } else if (!Array.isArray(allowCredential.transports)) {
+                            // If it's not a string or array, remove it
+                            delete allowCredential.transports;
+                        }
                     }
-                );
+                });
+            } else {
+                // If allowCredentials is not a valid array, remove it or set to empty array
+                // Setting to undefined allows WebAuthn to work without credential restrictions
+                challenge.allowCredentials = challenge.allowCredentials === null ? undefined : challenge.allowCredentials;
             }
             console.log('login challenge', challenge);
 
             navigator.credentials.get({
                 publicKey: challenge,
             }).then((assertion) => {
+                addLog('✅ Authentication successful', 'success');
                 assert(assertion);
             }).catch((e) => {
-                    console.log(e.toString());
-                }
-            )
+                addLog(`❌ Authentication failed: ${e.message}`, 'error');
+                console.error(e);
+                setButtonState(document.getElementById('login'), false);
+            });
         }
 
         function assert(assertion) {
-
-            console.log('assertion ',assertion);
+            addLog('📤 Verifying assertion with server...', 'info');
+            console.log('assertion', assertion);
 
             const authenticatorData = new Uint8Array(assertion.response.authenticatorData);
             const clientDataJSON = new Uint8Array(assertion.response.clientDataJSON);
@@ -142,7 +538,6 @@
                 },
             };
 
-
             const targetUrl = apiUrl + '/login/credential';
 
             fetch(targetUrl, {
@@ -154,24 +549,22 @@
                 },
                 body: JSON.stringify(postData),
             }).then(res => {
-                console.log(res)
-            }).catch(processError);
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+                return res.json();
+            }).then(data => {
+                console.log('Login response:', data);
+                addLog('🎉 Login successful! You are now authenticated', 'success');
+                setButtonState(document.getElementById('login'), false);
+            }).catch((error) => {
+                processError(error);
+                setButtonState(document.getElementById('login'), false);
+            });
         }
 
-        function bufferDecode(value) {
-            return Uint8Array.from(atob(value), c => c.charCodeAt(0));
-        }
-
-        function bufferEncode(bytes) {
-            let binary = ''
-            const len = bytes.byteLength;
-            for (let i = 0; i < len; i++) {
-                binary += String.fromCharCode( bytes[ i ] );
-            }
-            return window.btoa( binary ).replace(/\+/g, "-")
-                .replace(/\//g, "_")
-                .replace(/=/g, "")
-        }
+        // Initialize on page load
+        addLog('👋 Welcome! Enter a username and click Register to get started', 'info');
     </script>
 </body>
 </html>
