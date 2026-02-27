@@ -214,7 +214,7 @@
                 tbody.innerHTML = users.map(u => `
                     <tr>
                         <td>
-                            <strong>${u.displayName || (u.firstName + ' ' + u.lastName)}</strong>
+                            <strong>${u.displayName || ((u.firstName || '') + ' ' + (u.lastName || '')).trim() || u.email}</strong>
                         </td>
                         <td style="font-size:13px">${u.email}</td>
                         <td><span class="badge badge-info">${u.role || 'USER'}</span></td>

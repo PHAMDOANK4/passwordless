@@ -169,18 +169,36 @@
                     return;
                 }
 
-                tbody.innerHTML = filteredLogs.map(l => `
-                    <tr style="cursor:pointer" onclick='viewLog(${JSON.stringify(l).replace(/'/g, "\\'")})'>
+                let logDataStore = [];
+
+                function escapeHtml(str) {
+                    if (!str) return '';
+                    const div = document.createElement('div');
+                    div.textContent = str;
+                    return div.innerHTML;
+                }
+
+                tbody.innerHTML = filteredLogs.map((l, idx) => {
+                    logDataStore[idx] = l;
+                    return `
+                    <tr style="cursor:pointer" data-log-index="${idx}">
                         <td style="font-size:12px;color:var(--text-light);white-space:nowrap;">${formatTime(l.createdAt)}</td>
-                        <td><span class="badge ${getEventBadge(l.eventType)}">${l.eventType || '-'}</span></td>
-                        <td style="font-size:13px">${l.appName || '-'}</td>
-                        <td><span class="badge badge-secondary">${l.httpMethod || '-'}</span></td>
-                        <td style="font-size:12px;font-family:monospace;max-width:200px;overflow:hidden;text-overflow:ellipsis;">${l.endpoint || '-'}</td>
-                        <td style="font-size:13px">${l.ipAddress || '-'}</td>
+                        <td><span class="badge ${getEventBadge(l.eventType)}">${escapeHtml(l.eventType) || '-'}</span></td>
+                        <td style="font-size:13px">${escapeHtml(l.appName) || '-'}</td>
+                        <td><span class="badge badge-secondary">${escapeHtml(l.httpMethod) || '-'}</span></td>
+                        <td style="font-size:12px;font-family:monospace;max-width:200px;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(l.endpoint) || '-'}</td>
+                        <td style="font-size:13px">${escapeHtml(l.ipAddress) || '-'}</td>
                         <td>${l.success ? '<span class="badge badge-success">Success</span>' : '<span class="badge badge-danger">Failed</span>'}</td>
-                        <td style="font-size:12px;color:var(--danger);max-width:150px;overflow:hidden;text-overflow:ellipsis;">${l.errorMessage || ''}</td>
-                    </tr>
-                `).join('');
+                        <td style="font-size:12px;color:var(--danger);max-width:150px;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(l.errorMessage) || ''}</td>
+                    </tr>`;
+                }).join('');
+
+                tbody.querySelectorAll('tr[data-log-index]').forEach(row => {
+                    row.addEventListener('click', () => {
+                        const idx = parseInt(row.getAttribute('data-log-index'));
+                        viewLog(logDataStore[idx]);
+                    });
+                });
             } catch (err) {
                 tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--danger);">Failed to load logs</td></tr>';
                 showToast('Failed to load audit logs', 'error');
@@ -197,20 +215,29 @@
         }
 
         function viewLog(log) {
+            function esc(str) { if (!str) return ''; const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
+            let detailsHtml = '';
+            if (log.details) {
+                try {
+                    detailsHtml = `<div style="margin-top:16px"><label style="font-size:12px;color:var(--text-light)">Details</label><pre style="background:#f8fafc;padding:12px;border-radius:8px;font-size:12px;overflow:auto;max-height:200px;">${esc(JSON.stringify(JSON.parse(log.details), null, 2))}</pre></div>`;
+                } catch (e) {
+                    detailsHtml = `<div style="margin-top:16px"><label style="font-size:12px;color:var(--text-light)">Details</label><pre style="background:#f8fafc;padding:12px;border-radius:8px;font-size:12px;overflow:auto;max-height:200px;">${esc(log.details)}</pre></div>`;
+                }
+            }
             document.getElementById('detailContent').innerHTML = `
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-                    <div><label style="font-size:12px;color:var(--text-light)">Event Type</label><p><span class="badge ${getEventBadge(log.eventType)}">${log.eventType || '-'}</span></p></div>
+                    <div><label style="font-size:12px;color:var(--text-light)">Event Type</label><p><span class="badge ${getEventBadge(log.eventType)}">${esc(log.eventType) || '-'}</span></p></div>
                     <div><label style="font-size:12px;color:var(--text-light)">Status</label><p>${log.success ? '<span class="badge badge-success">Success</span>' : '<span class="badge badge-danger">Failed</span>'}</p></div>
                     <div><label style="font-size:12px;color:var(--text-light)">Timestamp</label><p>${formatTime(log.createdAt)}</p></div>
-                    <div><label style="font-size:12px;color:var(--text-light)">IP Address</label><p>${log.ipAddress || '-'}</p></div>
-                    <div><label style="font-size:12px;color:var(--text-light)">HTTP Method</label><p><span class="badge badge-secondary">${log.httpMethod || '-'}</span></p></div>
-                    <div><label style="font-size:12px;color:var(--text-light)">Endpoint</label><p style="font-family:monospace;font-size:13px;word-break:break-all">${log.endpoint || '-'}</p></div>
-                    <div><label style="font-size:12px;color:var(--text-light)">App Name</label><p>${log.appName || '-'}</p></div>
-                    <div><label style="font-size:12px;color:var(--text-light)">App ID</label><p style="font-size:13px">${log.appId || '-'}</p></div>
+                    <div><label style="font-size:12px;color:var(--text-light)">IP Address</label><p>${esc(log.ipAddress) || '-'}</p></div>
+                    <div><label style="font-size:12px;color:var(--text-light)">HTTP Method</label><p><span class="badge badge-secondary">${esc(log.httpMethod) || '-'}</span></p></div>
+                    <div><label style="font-size:12px;color:var(--text-light)">Endpoint</label><p style="font-family:monospace;font-size:13px;word-break:break-all">${esc(log.endpoint) || '-'}</p></div>
+                    <div><label style="font-size:12px;color:var(--text-light)">App Name</label><p>${esc(log.appName) || '-'}</p></div>
+                    <div><label style="font-size:12px;color:var(--text-light)">App ID</label><p style="font-size:13px">${esc(log.appId) || '-'}</p></div>
                 </div>
-                ${log.errorMessage ? `<div style="margin-top:16px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;"><label style="font-size:12px;color:#991b1b;font-weight:600">Error Message</label><p style="color:#991b1b;font-size:14px;margin-top:4px;">${log.errorMessage}</p></div>` : ''}
-                ${log.details ? `<div style="margin-top:16px"><label style="font-size:12px;color:var(--text-light)">Details</label><pre style="background:#f8fafc;padding:12px;border-radius:8px;font-size:12px;overflow:auto;max-height:200px;">${JSON.stringify(JSON.parse(log.details || '{}'), null, 2)}</pre></div>` : ''}
-                ${log.userEmail ? `<div style="margin-top:16px"><label style="font-size:12px;color:var(--text-light)">User</label><p>${log.userEmail}</p></div>` : ''}
+                ${log.errorMessage ? `<div style="margin-top:16px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;"><label style="font-size:12px;color:#991b1b;font-weight:600">Error Message</label><p style="color:#991b1b;font-size:14px;margin-top:4px;">${esc(log.errorMessage)}</p></div>` : ''}
+                ${detailsHtml}
+                ${log.userEmail ? `<div style="margin-top:16px"><label style="font-size:12px;color:var(--text-light)">User</label><p>${esc(log.userEmail)}</p></div>` : ''}
             `;
             document.getElementById('detailModal').classList.add('show');
         }
