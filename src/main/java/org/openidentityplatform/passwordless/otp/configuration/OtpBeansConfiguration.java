@@ -25,6 +25,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.mail.MailSender;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Configuration
 public class OtpBeansConfiguration {
@@ -47,5 +49,10 @@ public class OtpBeansConfiguration {
     @Bean
     public OtpGenerator otpGenerator() {
         return new OtpGenerator();
+    }
+
+    @Bean
+    public PasswordEncoder otpPasswordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 }

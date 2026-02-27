@@ -10,6 +10,8 @@ import org.openidentityplatform.passwordless.otp.models.SentOtp;
 import org.openidentityplatform.passwordless.otp.models.VerifyOtpResult;
 import org.openidentityplatform.passwordless.otp.repositories.SentOtpRepository;
 import org.springframework.context.ApplicationContext;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -37,6 +39,8 @@ class OtpServiceTest {
 
     private final static int ATTEMPTS = 5;
 
+    private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+
     private OtpService otpService;
 
     private SentOtp sentOtp;
@@ -62,7 +66,7 @@ class OtpServiceTest {
         sentOtp = new SentOtp();
         sentOtp.setSessionId(UUID.fromString(SESSION_ID));
         sentOtp.setDestination(PHONE);
-        sentOtp.setOtp(OTP);
+        sentOtp.setOtp(passwordEncoder.encode(OTP));
         sentOtp.setAttempts(5);
         sentOtp.setExpireTime(System.currentTimeMillis() + 1000);
 
@@ -75,7 +79,7 @@ class OtpServiceTest {
         ApplicationContext applicationContext = mock(ApplicationContext.class);
         when(applicationContext.getBean(eq(TYPE), eq(OtpSender.class))).thenReturn(otpSender);
 
-        otpService = new OtpService(otpConfiguration, sentOtpRepository, otpGenerator, applicationContext);
+        otpService = new OtpService(otpConfiguration, sentOtpRepository, otpGenerator, applicationContext, passwordEncoder);
 
     }
     @Test

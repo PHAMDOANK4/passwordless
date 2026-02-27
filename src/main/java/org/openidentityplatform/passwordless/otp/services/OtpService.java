@@ -12,6 +12,7 @@ import org.openidentityplatform.passwordless.otp.models.VerifyOtpResult;
 import org.openidentityplatform.passwordless.otp.repositories.SentOtpRepository;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -25,6 +26,7 @@ public class OtpService {
     private final SentOtpRepository sentOtpRepository;
     private final OtpGenerator otpGenerator;
     private final ApplicationContext applicationContext;
+    private final PasswordEncoder passwordEncoder;
 
     public SendOtpResult send(String type, String destination) throws NotFoundException, SendOtpException, FrequentSendingForbidden {
         final OtpSettings otpSettings;
@@ -46,12 +48,14 @@ public class OtpService {
             throw new SenderNotFoundException();
         }
         final String messageTitle = otpSettings.getMessageTitle();
-        final String messageBody = createMessage(otpSettings.getMessageTemplate(), sentOTP.getOtp());
+        final String rawOtp = sentOTP.getOtp();
+        final String messageBody = createMessage(otpSettings.getMessageTemplate(), rawOtp);
 
         validateFrequentSending(destination);
 
         otpSender.sendOTP(destination, messageBody, messageTitle);
         sentOTP.setAttempts(otpConfiguration.getAttempts());
+        sentOTP.setOtp(passwordEncoder.encode(rawOtp));
         sentOtpRepository.save(sentOTP);
 
         return new SendOtpResult(sentOTP.getSessionId().toString(), sentOTP.getDestination(), sentOTP.getExpireTime(), sentOTP.getAttempts());
@@ -88,14 +92,14 @@ public class OtpService {
      * @return Verification result
      */
     public VerifyOtpResult verifyByDestination(String destination, String otp) throws NotFoundException, OtpVerifyAttemptsExceeded {
-        List<SentOtp> sentOtps = sentOtpRepository.findByDestinationAndOtpOrderByLastSentAtDesc(destination, otp);
+        List<SentOtp> sentOtps = sentOtpRepository.findTop10ByDestinationOrderByLastSentAtDesc(destination);
         
         if(sentOtps.isEmpty()) {
-            log.warn("No OTP found for destination {} with code {}", destination, otp);
+            log.warn("No OTP found for destination {}", destination);
             throw new SessionNotFoundException();
         }
 
-        // Find the first non-expired OTP with attempts remaining
+        // Find the first non-expired OTP with attempts remaining that matches
         SentOtp sentOtp = null;
         for (SentOtp candidate : sentOtps) {
             if (candidate.getExpireTime() > System.currentTimeMillis() && candidate.getAttempts() > 0) {
@@ -114,7 +118,7 @@ public class OtpService {
         }
 
         boolean result = sentOtp.getExpireTime() > System.currentTimeMillis()
-                && sentOtp.getOtp().equals(otp);
+                && passwordEncoder.matches(otp, sentOtp.getOtp());
 
         Integer remainingAttempts = null;
         if(!result) {
@@ -163,7 +167,7 @@ public class OtpService {
         }
 
         boolean result = sentOtp.getExpireTime() > System.currentTimeMillis()
-                && sentOtp.getOtp().equals(otp);
+                && passwordEncoder.matches(otp, sentOtp.getOtp());
 
         Integer remainingAttempts = null;
         if(!result) {

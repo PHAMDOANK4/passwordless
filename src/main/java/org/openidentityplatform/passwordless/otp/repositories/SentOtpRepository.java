@@ -11,5 +11,5 @@ import java.util.UUID;
 @Repository
 public interface SentOtpRepository extends CrudRepository<SentOtp, UUID> {
     Optional<SentOtp> findFirstByDestinationOrderByLastSentAtDesc(String destination);
-    List<SentOtp> findByDestinationAndOtpOrderByLastSentAtDesc(String destination, String otp);
+    List<SentOtp> findTop10ByDestinationOrderByLastSentAtDesc(String destination);
 }
