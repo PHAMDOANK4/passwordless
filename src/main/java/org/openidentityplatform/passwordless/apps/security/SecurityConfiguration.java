@@ -42,6 +42,7 @@ public class SecurityConfiguration {
                 .requestMatchers("/admin/**", "/api/domains/**", "/css/**").permitAll()
                 .anyRequest().authenticated()
             )
+            // Filter order: ApiKey → JWT → UsernamePasswordAuthentication
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(apiKeyAuthenticationFilter, JwtAuthenticationFilter.class);
         

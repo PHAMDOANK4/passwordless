@@ -158,7 +158,6 @@ public class OtpService {
         Integer remainingAttempts = null;
         if(!result) {
             remainingAttempts = sentOtp.getAttempts() - 1;
-            remainingAttempts = Math.max(remainingAttempts, 0);
             sentOtp.setAttempts(remainingAttempts);
             sentOtpRepository.save(sentOtp);
         } else {
