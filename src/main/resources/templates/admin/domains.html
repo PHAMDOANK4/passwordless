@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{admin/layout :: head('Domains')}"></head>
+<body>
+    <nav th:replace="~{admin/layout :: sidebar('domains')}"></nav>
+    <div th:replace="~{admin/layout :: toasts}"></div>
+
+    <div class="main">
+        <div class="topbar">
+            <h1>Domain Management</h1>
+            <div class="topbar-actions">
+                <button class="btn btn-primary" onclick="openCreateModal()">+ New Domain</button>
+            </div>
+        </div>
+        <div class="content">
+            <div class="card">
+                <div class="card-header">
+                    <h3>All Domains</h3>
+                    <span style="font-size:13px;color:var(--text-light)" id="domainTotal"></span>
+                </div>
+                <div class="card-body" style="padding:0">
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Domain</th>
+                                    <th>Owner</th>
+                                    <th>Users</th>
+                                    <th>MFA Required</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="domainsTable">
+                                <tr><td colspan="7" class="loading"><span class="spinner"></span>Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Domain Modal -->
+    <div class="modal-backdrop" id="createModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Create New Domain</h3>
+                <button class="modal-close" onclick="closeModal('createModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="createDomainForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Domain Name *</label>
+                            <input type="text" class="form-control" id="domainName" placeholder="example.com" required/>
+                        </div>
+                        <div class="form-group">
+                            <label>Display Name *</label>
+                            <input type="text" class="form-control" id="displayName" placeholder="Example Corp" required/>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Owner Email *</label>
+                        <input type="email" class="form-control" id="ownerEmail" placeholder="admin@example.com" required/>
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <input type="text" class="form-control" id="description" placeholder="Optional description"/>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Max Users</label>
+                            <input type="number" class="form-control" id="maxUsers" placeholder="Unlimited"/>
+                        </div>
+                        <div class="form-group">
+                            <label>Require MFA</label>
+                            <select class="form-control" id="requireMfa">
+                                <option value="false">No</option>
+                                <option value="true">Yes</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Logo URL</label>
+                        <input type="url" class="form-control" id="logoUrl" placeholder="https://example.com/logo.png"/>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal('createModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="createDomain()">Create Domain</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Domain Detail Modal -->
+    <div class="modal-backdrop" id="detailModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="detailTitle">Domain Details</h3>
+                <button class="modal-close" onclick="closeModal('detailModal')">&times;</button>
+            </div>
+            <div class="modal-body" id="detailContent"></div>
+        </div>
+    </div>
+
+    <script>
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3000);
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+
+        function openCreateModal() { document.getElementById('createModal').classList.add('show'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+        async function loadDomains() {
+            try {
+                const res = await fetch('/api/domains');
+                if (!res.ok) throw new Error('Failed to load');
+                const domains = await res.json();
+                document.getElementById('domainTotal').textContent = `${domains.length} domain(s)`;
+
+                const tbody = document.getElementById('domainsTable');
+                if (domains.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">🌐</div><h4>No domains yet</h4><p>Create your first domain to get started</p></div></td></tr>';
+                    return;
+                }
+                tbody.innerHTML = domains.map(d => `
+                    <tr>
+                        <td>
+                            <strong>${d.displayName}</strong><br>
+                            <small style="color:var(--text-light)">${d.domainName}</small>
+                        </td>
+                        <td style="font-size:13px">${d.ownerEmail}</td>
+                        <td>${d.currentUsers || 0}${d.maxUsers ? '/' + d.maxUsers : ''}</td>
+                        <td>${d.requireMfa ? '<span class="badge badge-warning">Required</span>' : '<span class="badge badge-secondary">Optional</span>'}</td>
+                        <td><span class="badge ${d.active ? 'badge-success' : 'badge-danger'}">${d.active ? 'Active' : 'Inactive'}</span></td>
+                        <td style="font-size:13px;color:var(--text-light)">${formatDate(d.createdAt)}</td>
+                        <td>
+                            <button class="btn btn-outline btn-sm" onclick="viewDomain('${d.id}')">View</button>
+                            ${d.active
+                                ? `<button class="btn btn-warning btn-sm" onclick="deactivateDomain('${d.id}')">Deactivate</button>`
+                                : '<span class="badge badge-danger">Deactivated</span>'
+                            }
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                document.getElementById('domainsTable').innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--danger);">Failed to load domains</td></tr>';
+                showToast('Failed to load domains', 'error');
+            }
+        }
+
+        async function createDomain() {
+            const data = {
+                domainName: document.getElementById('domainName').value.trim(),
+                displayName: document.getElementById('displayName').value.trim(),
+                ownerEmail: document.getElementById('ownerEmail').value.trim(),
+                description: document.getElementById('description').value.trim() || null,
+                maxUsers: document.getElementById('maxUsers').value ? parseInt(document.getElementById('maxUsers').value) : null,
+                requireMfa: document.getElementById('requireMfa').value === 'true',
+                logoUrl: document.getElementById('logoUrl').value.trim() || null
+            };
+
+            if (!data.domainName || !data.displayName || !data.ownerEmail) {
+                showToast('Please fill in all required fields', 'error');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/domains', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.error || 'Failed to create domain');
+                }
+                closeModal('createModal');
+                document.getElementById('createDomainForm').reset();
+                showToast('Domain created successfully', 'success');
+                loadDomains();
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+
+        async function deactivateDomain(id) {
+            if (!confirm('Are you sure you want to deactivate this domain?')) return;
+            try {
+                const res = await fetch(`/api/domains/${id}/deactivate`, { method: 'POST' });
+                if (!res.ok) throw new Error('Failed');
+                showToast('Domain deactivated', 'success');
+                loadDomains();
+            } catch (err) {
+                showToast('Failed to deactivate domain', 'error');
+            }
+        }
+
+        async function viewDomain(id) {
+            try {
+                const res = await fetch(`/api/domains/${id}`);
+                if (!res.ok) throw new Error('Not found');
+                const d = await res.json();
+                document.getElementById('detailTitle').textContent = d.displayName;
+                document.getElementById('detailContent').innerHTML = `
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                        <div><label style="font-size:12px;color:var(--text-light)">Domain Name</label><p>${d.domainName}</p></div>
+                        <div><label style="font-size:12px;color:var(--text-light)">Display Name</label><p>${d.displayName}</p></div>
+                        <div><label style="font-size:12px;color:var(--text-light)">Owner Email</label><p>${d.ownerEmail}</p></div>
+                        <div><label style="font-size:12px;color:var(--text-light)">Status</label><p><span class="badge ${d.active ? 'badge-success' : 'badge-danger'}">${d.active ? 'Active' : 'Inactive'}</span></p></div>
+                        <div><label style="font-size:12px;color:var(--text-light)">Users</label><p>${d.currentUsers || 0}${d.maxUsers ? ' / ' + d.maxUsers : ''}</p></div>
+                        <div><label style="font-size:12px;color:var(--text-light)">MFA Required</label><p>${d.requireMfa ? 'Yes' : 'No'}</p></div>
+                        <div><label style="font-size:12px;color:var(--text-light)">SSO Enabled</label><p>${d.ssoEnabled ? 'Yes' : 'No'}</p></div>
+                        <div><label style="font-size:12px;color:var(--text-light)">Created</label><p>${formatDate(d.createdAt)}</p></div>
+                    </div>
+                    ${d.description ? `<div style="margin-top:16px"><label style="font-size:12px;color:var(--text-light)">Description</label><p>${d.description}</p></div>` : ''}
+                    <div style="margin-top:20px">
+                        <a href="/admin/users?domain=${d.id}" class="btn btn-primary btn-sm">View Users →</a>
+                    </div>
+                `;
+                document.getElementById('detailModal').classList.add('show');
+            } catch (err) {
+                showToast('Failed to load domain details', 'error');
+            }
+        }
+
+        loadDomains();
+    </script>
+</body>
+</html>

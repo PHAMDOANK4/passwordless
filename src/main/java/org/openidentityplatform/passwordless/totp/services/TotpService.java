@@ -20,6 +20,7 @@ import java.security.Key;
 import java.security.NoSuchAlgorithmException;
 import java.text.MessageFormat;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 
 @Service
@@ -34,6 +35,7 @@ public class TotpService {
     private TotpConfiguration totpConfiguration;
 
     private static final String URI_TEMPLATE = "otpauth://totp/{0}:{1}@{2}?secret={3}&issuer={0}";
+    static final long TIME_STEP_SECONDS = 30;
 
     public URI register(String username) {
         Optional<RegisteredTotp> registeredTotpOptional = totpRepository.findById(username);
@@ -82,13 +84,30 @@ public class TotpService {
         RegisteredTotp registeredTotp = registeredTotpOptional.get();
         Key key = restoreKey(registeredTotp.getSecret());
 
-        final int generatedTotp;
+        Instant now = Instant.now();
+        Instant[] windows = {
+            now,
+            now.minus(TIME_STEP_SECONDS, ChronoUnit.SECONDS),
+            now.plus(TIME_STEP_SECONDS, ChronoUnit.SECONDS)
+        };
+
         try {
-            generatedTotp = generator.generateOneTimePassword(key, Instant.now());
+            for (Instant window : windows) {
+                int generatedTotp = generator.generateOneTimePassword(key, window);
+                if (generatedTotp == totp) {
+                    long matchingStep = window.getEpochSecond() / TIME_STEP_SECONDS;
+                    if (registeredTotp.getLastUsedStep() != null && matchingStep <= registeredTotp.getLastUsedStep()) {
+                        return false;
+                    }
+                    registeredTotp.setLastUsedStep(matchingStep);
+                    totpRepository.save(registeredTotp);
+                    return true;
+                }
+            }
         } catch (InvalidKeyException e) {
             log.error("totp generation error occurred", e);
             throw new RuntimeException(e);
         }
-        return generatedTotp == totp;
+        return false;
     }
 }

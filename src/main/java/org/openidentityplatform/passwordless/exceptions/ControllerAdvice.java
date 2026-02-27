@@ -1,6 +1,7 @@
 package org.openidentityplatform.passwordless.exceptions;
 
 import lombok.extern.log4j.Log4j2;
+import org.openidentityplatform.passwordless.auth.services.AccountLockedException;
 import org.openidentityplatform.passwordless.otp.services.BadRequestException;
 import org.openidentityplatform.passwordless.otp.services.SendOtpException;
 import org.springframework.http.HttpStatus;
@@ -28,6 +29,16 @@ public class ControllerAdvice {
 
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<Map<String, String>> handleSendOtpException(BadRequestException e) {
+        return new ResponseEntity<>(Collections.singletonMap(ERROR_PROPERTY, e.getMessage()), HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(AccountLockedException.class)
+    public ResponseEntity<Map<String, String>> handleAccountLockedException(AccountLockedException e) {
+        return new ResponseEntity<>(Collections.singletonMap(ERROR_PROPERTY, e.getMessage()), HttpStatus.LOCKED);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, String>> handleIllegalArgumentException(IllegalArgumentException e) {
         return new ResponseEntity<>(Collections.singletonMap(ERROR_PROPERTY, e.getMessage()), HttpStatus.BAD_REQUEST);
     }
 
