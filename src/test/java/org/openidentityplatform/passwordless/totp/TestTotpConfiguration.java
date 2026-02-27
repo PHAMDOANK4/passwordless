@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @SpringBootTest
+@org.springframework.test.context.ActiveProfiles("test")
 public class TestTotpConfiguration {
 
     @Autowired
@@ -18,7 +19,7 @@ public class TestTotpConfiguration {
     TimeBasedOneTimePasswordGenerator totpGenerator;
     @Test
     public void testConfiguration() {
-        assertEquals("acme.com", totpConfiguration.getIssuer());
+        assertEquals("test.com", totpConfiguration.getIssuer());
         assertNotNull(totpGenerator);
     }
 }
