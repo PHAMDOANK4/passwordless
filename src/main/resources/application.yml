@@ -95,3 +95,8 @@ springdoc:
   show-actuator: true
   default-consumes-media-type: application/json
   default-produces-media-type: application/json
+
+jwt:
+  access-token-expiration-minutes: 15
+  refresh-token-expiration-days: 7
+  issuer: "passwordless-auth"
