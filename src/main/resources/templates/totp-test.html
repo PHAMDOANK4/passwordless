@@ -83,7 +83,7 @@
 </head>
 <body>
 <h1>🔢 TOTP Test UI</h1>
-<p>Test nhanh flow đăng ký và xác minh mã TOTP qua API <code>/totp/v1</code>.</p>
+<p>Quickly test TOTP registration and verification via <code>/totp/v1</code>.</p>
 
 <div class="card">
     <label for="username">Username</label>
@@ -100,7 +100,7 @@
     <div id="qrBox">
         <p><strong>QR code:</strong></p>
         <img id="qrImage" alt="TOTP QR"/>
-        <p class="muted">Quét QR bằng Google Authenticator/Authy rồi nhập mã để verify.</p>
+        <p class="muted">Scan this QR with Google Authenticator/Authy, then enter the code to verify.</p>
         <p class="muted">URI: <span id="uriText"></span></p>
     </div>
 
@@ -122,7 +122,7 @@
     async function registerTotp() {
         const username = document.getElementById('username').value.trim();
         if (!username) {
-            setResult('Username không được để trống.', true);
+            setResult('Username cannot be empty.', true);
             return;
         }
 
@@ -142,9 +142,9 @@
                 qrBoxEl.style.display = 'block';
             }
             uriTextEl.textContent = data.uri || '';
-            setResult('Register TOTP thành công. Hãy quét QR và nhập mã để verify.');
+            setResult('TOTP registration successful. Scan the QR code and enter the code to verify.');
         } catch (e) {
-            setResult(`Register thất bại: ${e.message}`, true);
+            setResult(`Registration failed: ${e.message}`, true);
         }
     }
 
@@ -153,7 +153,7 @@
         const totpCode = document.getElementById('totpCode').value.trim();
 
         if (!username || !totpCode) {
-            setResult('Cần nhập đầy đủ username và mã TOTP.', true);
+            setResult('Username and TOTP code are required.', true);
             return;
         }
 
@@ -170,15 +170,15 @@
             if (!res.ok) {
                 throw new Error(JSON.stringify(data));
             }
-            setResult(`Verify thành công. valid = ${data.valid}`);
+            setResult(`Verification successful. valid = ${data.valid}`);
         } catch (e) {
-            setResult(`Verify thất bại: ${e.message}`, true);
+            setResult(`Verification failed: ${e.message}`, true);
         }
     }
 
     document.getElementById('registerBtn').addEventListener('click', registerTotp);
     document.getElementById('verifyBtn').addEventListener('click', verifyTotp);
-    setResult('Sẵn sàng. Bấm Register TOTP để bắt đầu.');
+    setResult('Ready. Click Register TOTP to begin.');
 </script>
 </body>
 </html>
