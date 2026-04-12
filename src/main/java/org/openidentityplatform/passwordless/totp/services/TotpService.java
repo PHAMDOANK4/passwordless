@@ -7,6 +7,10 @@ import org.apache.commons.codec.binary.Base32;
 import org.openidentityplatform.passwordless.totp.configuration.TotpConfiguration;
 import org.openidentityplatform.passwordless.totp.models.RegisteredTotp;
 import org.openidentityplatform.passwordless.totp.repository.RegisteredTotpRepository;
+import org.openidentityplatform.passwordless.iam.models.Domain;
+import org.openidentityplatform.passwordless.iam.models.User;
+import org.openidentityplatform.passwordless.iam.repositories.DomainRepository;
+import org.openidentityplatform.passwordless.iam.repositories.UserRepository;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.KeyGenerator;
@@ -28,6 +32,8 @@ import java.util.Optional;
 public class TotpService {
 
     private RegisteredTotpRepository totpRepository;
+    private UserRepository userRepository;
+    private DomainRepository domainRepository;
 
     private TimeBasedOneTimePasswordGenerator generator;
 
@@ -46,6 +52,30 @@ public class TotpService {
         }
         final String secret = generateKey();
         registeredTotp.setSecret(secret);
+        
+        // --- JIT PROVISIONING TO SUPPORT IAM ADMIN DASHBOARD ---
+        Domain defaultDomain = domainRepository.findByDomainName("default.com")
+                .orElseGet(() -> {
+                    Domain d = new Domain();
+                    d.setDomainName("default.com");
+                    d.setDisplayName("Default Domain");
+                    d.setOwnerEmail("admin@default.com");
+                    return domainRepository.save(d);
+                });
+                
+        User iamUser = userRepository.findByEmail(username)
+                .orElseGet(() -> {
+                    User u = new User();
+                    u.setEmail(username);
+                    u.setDomain(defaultDomain);
+                    u.setDisplayName(username);
+                    u.setRole(User.UserRole.USER);
+                    u.setStatus(User.UserStatus.ACTIVE);
+                    return userRepository.save(u);
+                });
+        registeredTotp.setUser(iamUser);
+        // -------------------------------------------------------
+        
         totpRepository.save(registeredTotp);
         final String issuerLabelEncoded = URLEncoder.encode(totpConfiguration.getIssuerLabel(), StandardCharsets.UTF_8);
         final String usernameEncoded = URLEncoder.encode(username, StandardCharsets.UTF_8);

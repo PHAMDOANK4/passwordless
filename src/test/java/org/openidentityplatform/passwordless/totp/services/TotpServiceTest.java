@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Test;
 import org.openidentityplatform.passwordless.totp.configuration.TotpConfiguration;
 import org.openidentityplatform.passwordless.totp.models.RegisteredTotp;
 import org.openidentityplatform.passwordless.totp.repository.RegisteredTotpRepository;
+import org.openidentityplatform.passwordless.iam.repositories.DomainRepository;
+import org.openidentityplatform.passwordless.iam.repositories.UserRepository;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -46,7 +48,9 @@ class TotpServiceTest {
         totpConfiguration.setIssuer("acme.com");
         totpConfiguration.setIssuerLabel("Acme LLC");
         totpRepository = mock(RegisteredTotpRepository.class);
-        totpService = new TotpService(totpRepository, generator, totpConfiguration);
+        UserRepository userRepository = mock(UserRepository.class);
+        DomainRepository domainRepository = mock(DomainRepository.class);
+        totpService = new TotpService(totpRepository, userRepository, domainRepository, generator, totpConfiguration);
     }
 
     @Test
