@@ -87,10 +87,10 @@
 
 <div class="card">
     <label for="username">Username</label>
-    <input id="username" type="text" placeholder="vd: user01" value="user01"/>
+    <input id="username" type="text" placeholder="e.g.: user01" value="user01"/>
 
-    <label for="totpCode">TOTP Code (6 số)</label>
-    <input id="totpCode" type="number" placeholder="vd: 123456"/>
+    <label for="totpCode">TOTP Code (6 digits)</label>
+    <input id="totpCode" type="text" inputmode="numeric" pattern="[0-9]{6}" placeholder="e.g.: 123456"/>
 
     <div class="actions">
         <button id="registerBtn" type="button">Register TOTP</button>
