@@ -151,9 +151,14 @@
     async function verifyTotp() {
         const username = document.getElementById('username').value.trim();
         const totpCode = document.getElementById('totpCode').value.trim();
+        const totpValue = parseInt(totpCode, 10);
 
         if (!username || !totpCode) {
             setResult('Username and TOTP code are required.', true);
+            return;
+        }
+        if (!/^\d{6}$/.test(totpCode) || Number.isNaN(totpValue)) {
+            setResult('TOTP code must be exactly 6 digits.', true);
             return;
         }
 
@@ -163,7 +168,7 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
                     username,
-                    totp: Number(totpCode)
+                    totp: totpValue
                 })
             });
             const data = await res.json();
