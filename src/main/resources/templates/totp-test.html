@@ -86,6 +86,9 @@
 <p>Quickly test TOTP registration and verification via <code>/totp/v1</code>.</p>
 
 <div class="card">
+    <label for="apiKey">API Key</label>
+    <input id="apiKey" type="text" placeholder="e.g.: pk_xxxxxxxxxxxxxxxxx"/>
+
     <label for="username">Username</label>
     <input id="username" type="text" placeholder="e.g.: user01" value="user01"/>
 
@@ -120,16 +123,20 @@
     }
 
     async function registerTotp() {
+        const apiKey = document.getElementById('apiKey').value.trim();
         const username = document.getElementById('username').value.trim();
-        if (!username) {
-            setResult('Username cannot be empty.', true);
+        if (!apiKey || !username) {
+            setResult('API key and username are required.', true);
             return;
         }
 
         try {
             const res = await fetch(`${apiBase}/register`, {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-API-Key': apiKey
+                },
                 body: JSON.stringify({username})
             });
             const data = await res.json();
@@ -149,12 +156,13 @@
     }
 
     async function verifyTotp() {
+        const apiKey = document.getElementById('apiKey').value.trim();
         const username = document.getElementById('username').value.trim();
         const totpCode = document.getElementById('totpCode').value.trim();
         const totpValue = parseInt(totpCode, 10);
 
-        if (!username || !totpCode) {
-            setResult('Username and TOTP code are required.', true);
+        if (!apiKey || !username || !totpCode) {
+            setResult('API key, username and TOTP code are required.', true);
             return;
         }
         if (!/^\d{6}$/.test(totpCode) || Number.isNaN(totpValue)) {
@@ -165,7 +173,10 @@
         try {
             const res = await fetch(`${apiBase}/verify`, {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-API-Key': apiKey
+                },
                 body: JSON.stringify({
                     username,
                     totp: totpValue
