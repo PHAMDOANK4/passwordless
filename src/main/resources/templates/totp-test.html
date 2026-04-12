@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TOTP Test UI</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 760px;
+            margin: 32px auto;
+            padding: 0 16px;
+            color: #222;
+        }
+        h1 {
+            margin-bottom: 8px;
+        }
+        p {
+            color: #555;
+        }
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+        }
+        label {
+            display: block;
+            margin-top: 12px;
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+        input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+        .actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+        button {
+            border: none;
+            border-radius: 6px;
+            padding: 10px 14px;
+            cursor: pointer;
+            color: #fff;
+        }
+        #registerBtn {
+            background: #2563eb;
+        }
+        #verifyBtn {
+            background: #059669;
+        }
+        #result {
+            margin-top: 16px;
+            white-space: pre-wrap;
+            background: #f8f8f8;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 12px;
+            min-height: 40px;
+        }
+        #qrBox {
+            margin-top: 16px;
+            display: none;
+        }
+        #qrBox img {
+            max-width: 260px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 6px;
+            background: #fff;
+        }
+        .muted {
+            color: #777;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+<h1>🔢 TOTP Test UI</h1>
+<p>Test nhanh flow đăng ký và xác minh mã TOTP qua API <code>/totp/v1</code>.</p>
+
+<div class="card">
+    <label for="username">Username</label>
+    <input id="username" type="text" placeholder="vd: user01" value="user01"/>
+
+    <label for="totpCode">TOTP Code (6 số)</label>
+    <input id="totpCode" type="number" placeholder="vd: 123456"/>
+
+    <div class="actions">
+        <button id="registerBtn" type="button">Register TOTP</button>
+        <button id="verifyBtn" type="button">Verify TOTP</button>
+    </div>
+
+    <div id="qrBox">
+        <p><strong>QR code:</strong></p>
+        <img id="qrImage" alt="TOTP QR"/>
+        <p class="muted">Quét QR bằng Google Authenticator/Authy rồi nhập mã để verify.</p>
+        <p class="muted">URI: <span id="uriText"></span></p>
+    </div>
+
+    <div id="result"></div>
+</div>
+
+<script>
+    const apiBase = '/totp/v1';
+    const resultEl = document.getElementById('result');
+    const qrBoxEl = document.getElementById('qrBox');
+    const qrImageEl = document.getElementById('qrImage');
+    const uriTextEl = document.getElementById('uriText');
+
+    function setResult(message, isError = false) {
+        resultEl.style.color = isError ? '#b91c1c' : '#111827';
+        resultEl.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+    }
+
+    async function registerTotp() {
+        const username = document.getElementById('username').value.trim();
+        if (!username) {
+            setResult('Username không được để trống.', true);
+            return;
+        }
+
+        try {
+            const res = await fetch(`${apiBase}/register`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username})
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(JSON.stringify(data));
+            }
+
+            if (data.qr) {
+                qrImageEl.src = data.qr;
+                qrBoxEl.style.display = 'block';
+            }
+            uriTextEl.textContent = data.uri || '';
+            setResult('Register TOTP thành công. Hãy quét QR và nhập mã để verify.');
+        } catch (e) {
+            setResult(`Register thất bại: ${e.message}`, true);
+        }
+    }
+
+    async function verifyTotp() {
+        const username = document.getElementById('username').value.trim();
+        const totpCode = document.getElementById('totpCode').value.trim();
+
+        if (!username || !totpCode) {
+            setResult('Cần nhập đầy đủ username và mã TOTP.', true);
+            return;
+        }
+
+        try {
+            const res = await fetch(`${apiBase}/verify`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    username,
+                    totp: Number(totpCode)
+                })
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(JSON.stringify(data));
+            }
+            setResult(`Verify thành công. valid = ${data.valid}`);
+        } catch (e) {
+            setResult(`Verify thất bại: ${e.message}`, true);
+        }
+    }
+
+    document.getElementById('registerBtn').addEventListener('click', registerTotp);
+    document.getElementById('verifyBtn').addEventListener('click', verifyTotp);
+    setResult('Sẵn sàng. Bấm Register TOTP để bắt đầu.');
+</script>
+</body>
+</html>
