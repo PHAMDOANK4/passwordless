@@ -245,7 +245,8 @@ $> docker run --publish=8080:8080  maximthomas/passwordless
 
 Build and run docker image using docker-compose
 ```
-$> docker-compose up --build 
+$> ./mvnw -DskipTests clean package
+$> docker-compose up --build -d
 ```
 
 # One Time Password Authentication

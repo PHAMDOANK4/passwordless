@@ -37,16 +37,20 @@ This guide provides instructions for deploying the Passwordless Authentication S
 
 3. **Build and run:**
    ```bash
+   ./mvnw -DskipTests clean package
    docker-compose up --build -d
    ```
 
 4. **Verify the service is running:**
    ```bash
    # Direct app port
-   curl http://localhost:8080/actuator/health
+   curl http://localhost:8080/apps/v1/list
 
    # Through nginx reverse proxy
-   curl http://localhost/actuator/health
+   curl http://localhost/apps/v1/list
+
+   # Optional (if actuator is enabled in your config)
+   curl http://localhost:8080/actuator/health
    ```
 
 ### Using Pre-built Docker Image
@@ -235,6 +239,8 @@ server {
 
 ### Health Check Endpoint
 ```bash
+curl http://localhost:8080/apps/v1/list
+# or, if actuator is enabled:
 curl http://localhost:8080/actuator/health
 ```
 
