@@ -43,14 +43,22 @@ This guide provides instructions for deploying the Passwordless Authentication S
 
 4. **Verify the service is running:**
    ```bash
-   # Direct app port
-   curl http://localhost:8080/apps/v1/list
-
-   # Through nginx reverse proxy
    curl http://localhost/apps/v1/list
 
    # Optional (if actuator is enabled in your config)
-   curl http://localhost:8080/actuator/health
+   curl http://localhost/actuator/health
+   ```
+
+5. **Access from other machines in the same network:**
+   - Open inbound TCP port `80` on the server host/firewall.
+   - Use the server IP or domain from client machines:
+   ```bash
+   curl http://<SERVER_IP_OR_DOMAIN>/apps/v1/list
+   ```
+   - For WebAuthn deployments, set `.env` values before `docker-compose up`:
+   ```bash
+   WEBAUTHN_RPID=<SERVER_DOMAIN_OR_IP>
+   WEBAUTHN_ORIGIN=http://<SERVER_DOMAIN_OR_IP>
    ```
 
 ### Using Pre-built Docker Image
@@ -203,7 +211,7 @@ server {
 | `TOTP_ISSUER` | TOTP issuer name | `acme.com` |
 | `TOTP_ISSUER_LABEL` | TOTP display name | `Acme LLC` |
 | `WEBAUTHN_RPID` | WebAuthn Relying Party ID | `localhost` |
-| `WEBAUTHN_ORIGIN` | WebAuthn origin URL | `http://localhost:8080` |
+| `WEBAUTHN_ORIGIN` | WebAuthn origin URL | `http://localhost` |
 
 ## Security Considerations
 
@@ -239,9 +247,9 @@ server {
 
 ### Health Check Endpoint
 ```bash
-curl http://localhost:8080/apps/v1/list
+curl http://localhost/apps/v1/list
 # or, if actuator is enabled:
-curl http://localhost:8080/actuator/health
+curl http://localhost/actuator/health
 ```
 
 ### View Audit Logs

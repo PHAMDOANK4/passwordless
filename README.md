@@ -248,6 +248,10 @@ Build and run docker image using docker-compose
 $> ./mvnw -DskipTests clean package
 $> docker-compose up --build -d
 ```
+Access the service via nginx:
+```
+$> curl http://localhost/apps/v1/list
+```
 
 # One Time Password Authentication
 
