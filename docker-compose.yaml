@@ -49,8 +49,6 @@ services:
       # WebAuthn configuration
       WEBAUTHN_SETTINGS_RPID: ${WEBAUTHN_RPID:-localhost}
       WEBAUTHN_SETTINGS_ORIGIN: ${WEBAUTHN_ORIGIN:-http://localhost}
-    expose:
-      - "8080"
     depends_on:
       mysql:
         condition: service_healthy
