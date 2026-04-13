@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>OTP Registration</title>
+    <style>
+        :root {
+            --bg-1: #fef9ec;
+            --bg-2: #e8f3ff;
+            --text: #1f2937;
+            --muted: #4b5563;
+            --line: #d4deeb;
+            --panel: #ffffff;
+            --accent-a: #006d77;
+            --accent-b: #118ab2;
+            --ok: #0a7d45;
+            --err: #b42318;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            color: var(--text);
+            font-family: "Avenir Next", "Segoe UI", sans-serif;
+            background:
+                radial-gradient(800px 350px at 10% -10%, rgba(0, 109, 119, 0.2), transparent 60%),
+                radial-gradient(700px 350px at 100% 0%, rgba(17, 138, 178, 0.18), transparent 60%),
+                linear-gradient(130deg, var(--bg-1), var(--bg-2));
+            display: grid;
+            place-items: center;
+            padding: 20px;
+        }
+
+        .page {
+            width: min(760px, 100%);
+            background: var(--panel);
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(16, 24, 40, 0.18);
+            overflow: hidden;
+            animation: fadeUp 350ms ease-out;
+        }
+
+        .hero {
+            padding: 24px;
+            background: linear-gradient(110deg, var(--accent-a), var(--accent-b));
+            color: #f8fafc;
+        }
+
+        .hero h1 {
+            margin: 0;
+            font-size: clamp(24px, 4vw, 34px);
+            letter-spacing: -0.02em;
+        }
+
+        .hero p {
+            margin: 10px 0 0;
+            opacity: 0.95;
+            line-height: 1.5;
+        }
+
+        .content {
+            padding: 20px;
+            display: grid;
+            gap: 16px;
+            grid-template-columns: 1fr;
+        }
+
+        .card {
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            background: #fbfdff;
+            padding: 16px;
+        }
+
+        .field {
+            margin-bottom: 12px;
+        }
+
+        .field label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 13px;
+            font-weight: 700;
+            color: #344054;
+        }
+
+        .field input {
+            width: 100%;
+            border: 1px solid #cad6e6;
+            border-radius: 10px;
+            padding: 11px 12px;
+            font-size: 15px;
+            color: #111827;
+            background: #fff;
+        }
+
+        .field input:focus {
+            outline: none;
+            border-color: var(--accent-a);
+            box-shadow: 0 0 0 4px rgba(0, 109, 119, 0.12);
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 10px;
+            padding: 11px 16px;
+            color: #fff;
+            font-weight: 700;
+            cursor: pointer;
+            background: linear-gradient(120deg, var(--accent-a), var(--accent-b));
+            transition: transform 140ms ease, filter 140ms ease;
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            filter: brightness(1.04);
+        }
+
+        .btn:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+        }
+
+        .small-link {
+            color: var(--accent-a);
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .small-link:hover {
+            text-decoration: underline;
+        }
+
+        .status {
+            display: none;
+            margin-top: 10px;
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .status.ok {
+            display: block;
+            color: var(--ok);
+            background: #e8f7ef;
+            border: 1px solid #bee6cc;
+        }
+
+        .status.err {
+            display: block;
+            color: var(--err);
+            background: #fdecec;
+            border: 1px solid #f6c8c8;
+        }
+
+        .log {
+            margin: 0;
+            min-height: 170px;
+            max-height: 260px;
+            overflow: auto;
+            border-radius: 12px;
+            border: 1px solid #1f2937;
+            background: #0b1220;
+            color: #d6e6ff;
+            font-family: "IBM Plex Mono", Consolas, monospace;
+            font-size: 13px;
+            line-height: 1.4;
+            padding: 12px;
+            white-space: pre-wrap;
+        }
+
+        .hint {
+            margin: 0;
+            font-size: 13px;
+            color: var(--muted);
+            line-height: 1.45;
+        }
+
+        @keyframes fadeUp {
+            from {
+                transform: translateY(8px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+<main class="page">
+    <header class="hero">
+        <h1>OTP Registration UI</h1>
+        <p>Register and send an OTP code to email using <strong>POST /otp/v1/register</strong>.</p>
+    </header>
+
+    <section class="content">
+        <section class="card">
+            <div class="field">
+                <label for="apiKey">X-API-Key</label>
+                <input id="apiKey" type="text" autocomplete="off" placeholder="pk_xxxxxxxxxxxxx"/>
+            </div>
+            <div class="field">
+                <label for="sender">Sender</label>
+                <input id="sender" type="text" autocomplete="off" value="emailOtp" placeholder="emailOtp"/>
+            </div>
+            <div class="field">
+                <label for="destination">Destination Email</label>
+                <input id="destination" type="email" autocomplete="email" placeholder="user@example.com"/>
+            </div>
+
+            <div class="actions">
+                <button id="registerBtn" type="button" class="btn">Register OTP</button>
+                <a class="small-link" href="/otp/test">Open full OTP test page</a>
+            </div>
+
+            <p class="hint">Use sender setting id <strong>emailOtp</strong> to receive a <strong>6-digit OTP code</strong> via email. Registration flow auto-maps sender email-like values to emailOtp.</p>
+            <div id="status" class="status"></div>
+        </section>
+
+        <section class="card">
+            <h2 style="margin:0 0 10px; font-size: 17px;">Registration Response</h2>
+            <pre id="log" class="log">Ready. Enter API key, sender and destination, then click Register OTP.</pre>
+        </section>
+    </section>
+</main>
+
+<script>
+    const apiBase = '/otp/v1';
+
+    const apiKeyEl = document.getElementById('apiKey');
+    const senderEl = document.getElementById('sender');
+    const destinationEl = document.getElementById('destination');
+    const registerBtnEl = document.getElementById('registerBtn');
+    const statusEl = document.getElementById('status');
+    const logEl = document.getElementById('log');
+
+    function setLoading(loading) {
+        registerBtnEl.disabled = loading;
+    }
+
+    function showStatus(message, isError) {
+        statusEl.textContent = message;
+        statusEl.className = isError ? 'status err' : 'status ok';
+    }
+
+    function printLog(title, payload) {
+        const ts = new Date().toLocaleTimeString();
+        const body = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
+        logEl.textContent = `[${ts}] ${title}\n${body}`;
+    }
+
+    async function parseResponse(res) {
+        const type = (res.headers.get('content-type') || '').toLowerCase();
+        if (type.includes('application/json')) {
+            return await res.json();
+        }
+        const text = await res.text();
+        return text || `HTTP ${res.status}`;
+    }
+
+    async function registerOtp() {
+        const apiKey = apiKeyEl.value.trim();
+        const sender = senderEl.value.trim();
+        const destination = destinationEl.value.trim();
+
+        if (!apiKey || !sender || !destination) {
+            showStatus('API key, sender and destination are required.', true);
+            return;
+        }
+
+        try {
+            setLoading(true);
+            const res = await fetch(`${apiBase}/register`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-API-Key': apiKey
+                },
+                body: JSON.stringify({ sender, destination })
+            });
+
+            const data = await parseResponse(res);
+            printLog('POST /otp/v1/register', data);
+
+            if (!res.ok) {
+                throw new Error(data.error || JSON.stringify(data));
+            }
+
+            localStorage.setItem('otpRegisterApiKey', apiKey);
+            localStorage.setItem('otpRegisterSender', sender);
+            localStorage.setItem('otpRegisterDestination', destination);
+            showStatus('OTP registration successful. Email was sent.', false);
+        } catch (error) {
+            showStatus(`Registration failed: ${error.message}`, true);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    registerBtnEl.addEventListener('click', registerOtp);
+
+    const savedApiKey = localStorage.getItem('otpRegisterApiKey');
+    const savedSender = localStorage.getItem('otpRegisterSender');
+    const savedDestination = localStorage.getItem('otpRegisterDestination');
+
+    if (savedApiKey) {
+        apiKeyEl.value = savedApiKey;
+    }
+    if (savedSender) {
+        senderEl.value = savedSender;
+    }
+    if (savedDestination) {
+        destinationEl.value = savedDestination;
+    }
+</script>
+</body>
+</html>

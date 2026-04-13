@@ -69,6 +69,16 @@ otp:
       ttlMinutes: 10
       sender: "emailOtpSender"
 
+    - id: "emailOtp"
+      name: "Email 6-digit OTP Setting"
+      messageTitle: "Your OTP Code"
+      messageTemplate: "Your OTP code is: ${otp}"
+      otpLength: 6
+      useLetters: false
+      useDigits: true
+      ttlMinutes: 3
+      sender: "emailOtpSender"
+
 webauthn:
   settings:
     timeout: 60000

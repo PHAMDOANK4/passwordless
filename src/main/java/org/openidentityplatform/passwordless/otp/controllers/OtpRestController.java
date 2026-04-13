@@ -37,7 +37,16 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/otp/v1")
 public class OtpRestController {
 
+    private static final String EMAIL_OTP_SETTING_ID = "emailOtp";
+
     private final OtpService otpService;
+
+    @PostMapping("/register")
+    public SendOtpResult register(@RequestBody @Valid SendOtpRequest sendOTPRequest)
+            throws NotFoundException, SendOtpException, FrequentSendingForbidden {
+        String senderSettingId = resolveRegistrationSender(sendOTPRequest.getSender());
+        return otpService.send(senderSettingId, sendOTPRequest.getDestination());
+    }
 
     @PostMapping("/send")
     public SendOtpResult send(@RequestBody @Valid SendOtpRequest sendOTPRequest)
@@ -60,6 +69,23 @@ public class OtpRestController {
         } else {
             throw new IllegalArgumentException("Either 'destination' or 'sessionId' must be provided");
         }
+    }
+
+    private String resolveRegistrationSender(String sender) {
+        if (sender == null) {
+            return EMAIL_OTP_SETTING_ID;
+        }
+
+        String normalizedSender = sender.trim();
+        if (normalizedSender.isEmpty() || normalizedSender.contains("@")) {
+            return EMAIL_OTP_SETTING_ID;
+        }
+
+        if ("emailLink".equalsIgnoreCase(normalizedSender)) {
+            return EMAIL_OTP_SETTING_ID;
+        }
+
+        return normalizedSender;
     }
 
 

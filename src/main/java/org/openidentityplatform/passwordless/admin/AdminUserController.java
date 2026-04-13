@@ -9,11 +9,13 @@ import org.openidentityplatform.passwordless.totp.models.RegisteredTotp;
 import org.openidentityplatform.passwordless.totp.repository.RegisteredTotpRepository;
 import org.openidentityplatform.passwordless.webauthn.repositories.UserAuthenticatorJPARepository;
 import org.openidentityplatform.passwordless.webauthn.repositories.WebAuthnAuthenticatorEntity;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
@@ -169,12 +171,21 @@ public class AdminUserController {
      * Delete a user. This only removes the IAM user record.
      */
     @DeleteMapping("/{id}")
+    @Transactional
     public ResponseEntity<Void> deleteUser(@PathVariable String id) {
-        if (userRepository.existsById(id)) {
+        if (!userRepository.existsById(id)) {
+            return ResponseEntity.notFound().build();
+        }
+
+        try {
+            // Delete dependent auth records first to avoid FK constraint violations.
+            totpRepository.deleteByUserId(id);
+            webAuthnRepository.deleteByUserId(id);
             userRepository.deleteById(id);
             return ResponseEntity.noContent().build();
+        } catch (DataIntegrityViolationException ex) {
+            return ResponseEntity.status(409).build();
         }
-        return ResponseEntity.notFound().build();
     }
 
     // =========================================================

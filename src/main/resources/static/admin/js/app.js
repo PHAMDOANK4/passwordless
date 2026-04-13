@@ -19,10 +19,12 @@ const API = {
     otpSessions: id => `/admin/api/users/${id}/otp-sessions`,
   },
   apps: {
+    register: () => '/apps/v1/register',
     list: () => '/apps/v1/list',
     deactivate: id => `/apps/v1/${id}/deactivate`,
     activate: id => `/apps/v1/${id}/activate`,
     delete: id => `/apps/v1/${id}`,
+    regenerateKey: id => `/apps/v1/${id}/regenerate-key`,
   },
   audit: {
     logs: (p, s) => `/apps/v1/audit/logs?page=${p}&size=${s}`,
@@ -32,10 +34,25 @@ const API = {
 async function apiFetch(url, options = {}) {
   try {
     const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...options });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const ct = res.headers.get('content-type') || '';
-    if (ct.includes('application/json')) return res.json();
-    return null;
+    let payload = null;
+    if (ct.includes('application/json')) {
+      payload = await res.json();
+    } else if (res.status !== 204) {
+      payload = await res.text();
+    }
+
+    if (!res.ok) {
+      const message = typeof payload === 'string'
+        ? payload
+        : (payload && (payload.message || payload.error))
+          ? (payload.message || payload.error)
+          : `HTTP ${res.status}`;
+      throw new Error(message);
+    }
+
+    if (ct.includes('application/json')) return payload;
+    return payload;
   } catch (e) {
     throw e;
   }
@@ -478,12 +495,16 @@ async function activateUser(id, email) {
 
 async function deleteUser(id, email) {
   const ok = await showConfirm('Xóa tài khoản', `<div style="color:var(--rose);margin-bottom:8px">⚠️ Hành động này không thể hoàn tác!</div>Bạn có chắc muốn xóa tài khoản <strong>${email}</strong>?`);
-  if (!ok) return;
+  if (!ok) return false;
   try {
     await apiFetch(API.users.delete(id), { method:'DELETE' });
     showToast('Đã xóa tài khoản', 'success');
     loadUsersTable();
-  } catch(e) { showToast('Có lỗi xảy ra', 'error'); }
+    return true;
+  } catch(e) {
+    showToast(`Xóa thất bại: ${e.message}`, 'error');
+    return false;
+  }
 }
 
 // =========================================================
@@ -677,7 +698,36 @@ async function deletePasskey(userId, keyId, deviceName) {
 pages.apps = async function () {
   const content = document.getElementById('mainContent');
   content.innerHTML = `<div class="page-header"><h1>Ứng dụng</h1><p>Quản lý các ứng dụng đã đăng ký và API keys</p></div>
-    <div class="card"><div class="card-header"><div class="card-title">${appIcon()} Danh sách ứng dụng</div></div><div id="appsArea"><div class="page-loading" style="padding:30px"><div class="spinner"></div></div></div></div>`;
+    <div class="card">
+      <div class="tabs" id="appsTabs">
+        <button class="tab-btn active" data-app-tab="list">📦 Danh sách ứng dụng</button>
+        <button class="tab-btn" data-app-tab="generate">🔑 Generate API Key</button>
+      </div>
+      <div id="appsListTab" class="tab-panel active">
+        <div class="card-header"><div class="card-title">${appIcon()} Danh sách ứng dụng</div></div>
+        <div id="appsArea"><div class="page-loading" style="padding:30px"><div class="spinner"></div></div></div>
+      </div>
+      <div id="appsGenerateTab" class="tab-panel">
+        <div class="card-header"><div class="card-title">🔐 Cấp API Key cho khách hàng</div></div>
+        <div class="card-body" id="apiKeyGenerateBody"></div>
+      </div>
+    </div>`;
+
+  renderApiKeyGenerator();
+
+  document.querySelectorAll('#appsTabs .tab-btn').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('#appsTabs .tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('#mainContent .tab-panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      if (btn.dataset.appTab === 'generate') {
+        document.getElementById('appsGenerateTab').classList.add('active');
+      } else {
+        document.getElementById('appsListTab').classList.add('active');
+      }
+    };
+  });
+
   try {
     const apps = await apiFetch(API.apps.list());
     if (!apps.length) { document.getElementById('appsArea').innerHTML = emptyKeys('Chưa có ứng dụng nào đăng ký'); return; }
@@ -705,6 +755,7 @@ function appCard(a) {
         ${a.active
           ? `<button class="btn btn-sm btn-warning" data-app-action="deactivate" data-id="${a.id}" data-name="${a.name}">Deactivate</button>`
           : `<button class="btn btn-sm btn-success" data-app-action="activate" data-id="${a.id}" data-name="${a.name}">Activate</button>`}
+        <button class="btn btn-sm" data-app-action="regenerate" data-id="${a.id}" data-name="${a.name}">Regenerate Key</button>
         <button class="btn btn-sm btn-danger" data-app-action="delete" data-id="${a.id}" data-name="${a.name}">Xóa</button>
       </div>
     </div>
@@ -722,6 +773,12 @@ async function handleAppAction(action, id, name) {
     await apiFetch(API.apps.activate(id), { method:'POST' });
     showToast('Đã kích hoạt ứng dụng', 'success');
     pages.apps();
+  } else if (action === 'regenerate') {
+    const ok = await showConfirm('Regenerate API Key', `Tạo API key mới cho <strong>${name}</strong>? API key cũ sẽ hết hiệu lực ngay.`);
+    if (!ok) return;
+    const newKey = await apiFetch(API.apps.regenerateKey(id), { method:'POST' });
+    showGeneratedApiKey({ name, apiKey: newKey });
+    showToast('Đã tạo API key mới', 'success');
   } else if (action === 'delete') {
     const ok = await showConfirm('Xóa App', `<span style="color:var(--rose)">⚠️ Không thể hoàn tác!</span><br>Xóa ứng dụng <strong>${name}</strong>?`);
     if (!ok) return;
@@ -729,6 +786,118 @@ async function handleAppAction(action, id, name) {
     showToast('Đã xóa ứng dụng', 'success');
     pages.apps();
   }
+}
+
+function renderApiKeyGenerator() {
+  const body = document.getElementById('apiKeyGenerateBody');
+  if (!body) return;
+  body.innerHTML = `
+    <form id="apiKeyForm" style="display:grid;gap:14px;max-width:760px">
+      <div>
+        <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px">Tên khách hàng / ứng dụng</label>
+        <input id="appNameInput" class="filter-input" placeholder="Ví dụ: customer-acme-prod" minlength="3" maxlength="100" required />
+      </div>
+      <div>
+        <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px">Mô tả</label>
+        <textarea id="appDescInput" class="filter-input" placeholder="Mục đích sử dụng API key" style="min-height:88px;resize:vertical"></textarea>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+        <div>
+          <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px">Rate limit / phút</label>
+          <input id="rateMinuteInput" class="filter-input" type="number" min="1" value="60" required />
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px">Rate limit / giờ</label>
+          <input id="rateHourInput" class="filter-input" type="number" min="1" value="1000" required />
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button type="submit" class="btn btn-success">Generate API Key</button>
+        <span style="font-size:12px;color:var(--text-muted)">API key chỉ hiển thị một lần. Hãy lưu ngay sau khi tạo.</span>
+      </div>
+    </form>
+    <div id="apiKeyResult" style="margin-top:16px"></div>`;
+
+  const form = document.getElementById('apiKeyForm');
+  form.addEventListener('submit', handleGenerateApiKey);
+}
+
+async function handleGenerateApiKey(event) {
+  event.preventDefault();
+  const submitBtn = event.target.querySelector('button[type="submit"]');
+  const payload = {
+    name: document.getElementById('appNameInput').value.trim(),
+    description: document.getElementById('appDescInput').value.trim(),
+    rateLimitPerMinute: Number(document.getElementById('rateMinuteInput').value),
+    rateLimitPerHour: Number(document.getElementById('rateHourInput').value)
+  };
+
+  if (!payload.name || payload.name.length < 3) {
+    showToast('Tên ứng dụng tối thiểu 3 ký tự', 'error');
+    return;
+  }
+  if (!Number.isFinite(payload.rateLimitPerMinute) || payload.rateLimitPerMinute < 1) {
+    showToast('Rate limit/phút phải lớn hơn 0', 'error');
+    return;
+  }
+  if (!Number.isFinite(payload.rateLimitPerHour) || payload.rateLimitPerHour < 1) {
+    showToast('Rate limit/giờ phải lớn hơn 0', 'error');
+    return;
+  }
+
+  try {
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Đang tạo...';
+    const res = await apiFetch(API.apps.register(), {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    showGeneratedApiKey(res);
+    showToast('Tạo API key thành công', 'success');
+  } catch (e) {
+    showToast(`Không thể tạo API key: ${e.message}`, 'error');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Generate API Key';
+  }
+}
+
+function showGeneratedApiKey(app) {
+  const result = document.getElementById('apiKeyResult');
+  if (!result || !app || !app.apiKey) return;
+  result.innerHTML = `
+    <div class="info-grid">
+      <div class="info-item" style="grid-column:1/-1">
+        <div class="info-label">Ứng dụng</div>
+        <div class="info-value">${app.name || 'N/A'}</div>
+      </div>
+      <div class="info-item" style="grid-column:1/-1">
+        <div class="info-label">API Key</div>
+        <div class="info-value" style="font-family:monospace;word-break:break-all">${app.apiKey}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Rate limit / phút</div>
+        <div class="info-value">${app.rateLimitPerMinute ?? 'N/A'}</div>
+      </div>
+      <div class="info-item">
+        <div class="info-label">Rate limit / giờ</div>
+        <div class="info-value">${app.rateLimitPerHour ?? 'N/A'}</div>
+      </div>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-sm" id="copyApiKeyBtn">Copy API Key</button>
+      <span style="font-size:12px;color:var(--text-muted)">Chia sẻ key này cho khách hàng để gọi OTP/TOTP APIs.</span>
+    </div>`;
+
+  const copyBtn = document.getElementById('copyApiKeyBtn');
+  copyBtn.onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(app.apiKey);
+      showToast('Đã copy API key', 'success');
+    } catch (_) {
+      showToast('Không thể copy tự động, vui lòng copy thủ công', 'error');
+    }
+  };
 }
 
 // =========================================================

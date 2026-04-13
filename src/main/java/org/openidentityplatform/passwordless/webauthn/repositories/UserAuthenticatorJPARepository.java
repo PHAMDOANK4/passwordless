@@ -13,5 +13,6 @@ public interface UserAuthenticatorJPARepository extends JpaRepository<WebAuthnAu
     // Admin queries
     List<WebAuthnAuthenticatorEntity> findByUserIdOrderByCreatedAtDesc(String userId);
     long countByUserId(String userId);
+    long deleteByUserId(String userId);
 }
 

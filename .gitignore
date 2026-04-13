@@ -24,7 +24,8 @@ HELP.md
 /nbdist/
 /.nb-gradle/
 /build/
-
+nginx/certs/*.crt
+nginx/certs/*.key
 ### VS Code ###
 .vscode/
 

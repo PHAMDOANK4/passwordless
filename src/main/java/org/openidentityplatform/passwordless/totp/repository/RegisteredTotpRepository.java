@@ -13,5 +13,7 @@ public interface RegisteredTotpRepository extends JpaRepository<RegisteredTotp, 
     List<RegisteredTotp> findByUserIdOrderByUsername(String userId);
 
     long countByUserId(String userId);
+
+    long deleteByUserId(String userId);
 }
 

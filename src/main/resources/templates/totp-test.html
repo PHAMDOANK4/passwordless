@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TOTP Test UI</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 760px;
+            margin: 32px auto;
+            padding: 0 16px;
+            color: #222;
+        }
+        h1 {
+            margin-bottom: 8px;
+        }
+        p {
+            color: #555;
+        }
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+        }
+        label {
+            display: block;
+            margin-top: 12px;
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+        input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+        input:focus {
+            outline: 2px solid #93c5fd;
+            border-color: #3b82f6;
+        }
+        .actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+        button {
+            border: none;
+            border-radius: 6px;
+            padding: 10px 14px;
+            cursor: pointer;
+            color: #fff;
+        }
+        #registerBtn {
+            background: #2563eb;
+        }
+        #verifyBtn {
+            background: #059669;
+        }
+        button:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+        }
+        #result {
+            margin-top: 16px;
+            white-space: pre-wrap;
+            background: #f8f8f8;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 12px;
+            min-height: 40px;
+        }
+        #qrBox {
+            margin-top: 16px;
+            display: none;
+        }
+        #qrBox img {
+            max-width: 260px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 6px;
+            background: #fff;
+        }
+        .muted {
+            color: #777;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+<h1>🔢 TOTP Test UI</h1>
+<p>Quickly test TOTP registration and verification via <code>/totp/v1</code>.</p>
+
+<div class="card">
+    <label for="apiKey">API Key</label>
+    <input id="apiKey" type="text" autocomplete="off" placeholder="e.g.: pk_xxxxxxxxxxxxxxxxx"/>
+
+    <label for="username">Username</label>
+    <input id="username" type="text" placeholder="e.g.: user01" value="user01"/>
+
+    <label for="totpCode">TOTP Code (6 digits)</label>
+    <input id="totpCode" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="e.g.: 123456"/>
+
+    <div class="actions">
+        <button id="registerBtn" type="button">Register TOTP</button>
+        <button id="verifyBtn" type="button">Verify TOTP</button>
+    </div>
+
+    <div id="qrBox">
+        <p><strong>QR code:</strong></p>
+        <img id="qrImage" alt="TOTP QR"/>
+        <p class="muted">Scan this QR with Google Authenticator/Authy, then enter the code to verify.</p>
+        <p class="muted">URI: <span id="uriText"></span></p>
+    </div>
+
+    <div id="result"></div>
+</div>
+
+<script>
+    const apiBase = '/totp/v1';
+    const resultEl = document.getElementById('result');
+    const qrBoxEl = document.getElementById('qrBox');
+    const qrImageEl = document.getElementById('qrImage');
+    const uriTextEl = document.getElementById('uriText');
+    const apiKeyEl = document.getElementById('apiKey');
+    const usernameEl = document.getElementById('username');
+    const totpCodeEl = document.getElementById('totpCode');
+    const registerBtnEl = document.getElementById('registerBtn');
+    const verifyBtnEl = document.getElementById('verifyBtn');
+
+    function setLoading(loading) {
+        registerBtnEl.disabled = loading;
+        verifyBtnEl.disabled = loading;
+    }
+
+    async function readResponseData(res) {
+        const contentType = (res.headers.get('content-type') || '').toLowerCase();
+        if (contentType.includes('application/json')) {
+            return await res.json();
+        }
+        const text = await res.text();
+        return { error: text || `HTTP ${res.status}` };
+    }
+
+    function resetQrView() {
+        qrImageEl.removeAttribute('src');
+        uriTextEl.textContent = '';
+        qrBoxEl.style.display = 'none';
+    }
+
+    function setResult(message, isError = false) {
+        resultEl.style.color = isError ? '#b91c1c' : '#111827';
+        resultEl.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+    }
+
+    async function registerTotp() {
+        const apiKey = apiKeyEl.value.trim();
+        const username = usernameEl.value.trim();
+        if (!apiKey || !username) {
+            setResult('API key and username are required.', true);
+            return;
+        }
+
+        try {
+            setLoading(true);
+            resetQrView();
+            const res = await fetch(`${apiBase}/register`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-API-Key': apiKey
+                },
+                body: JSON.stringify({username})
+            });
+            const data = await readResponseData(res);
+            if (!res.ok) {
+                throw new Error(data.error || JSON.stringify(data));
+            }
+
+            if (data.qr) {
+                qrImageEl.src = data.qr;
+                qrBoxEl.style.display = 'block';
+            }
+            uriTextEl.textContent = data.uri || '';
+            localStorage.setItem('totpTestApiKey', apiKey);
+            localStorage.setItem('totpTestUsername', username);
+            setResult('TOTP registration successful. Scan the QR code and enter the code to verify.');
+        } catch (e) {
+            setResult(`Registration failed: ${e.message}`, true);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    async function verifyTotp() {
+        const apiKey = apiKeyEl.value.trim();
+        const username = usernameEl.value.trim();
+        const totpCode = totpCodeEl.value.trim();
+        const totpValue = parseInt(totpCode, 10);
+
+        if (!apiKey || !username || !totpCode) {
+            setResult('API key, username and TOTP code are required.', true);
+            return;
+        }
+        if (!/^\d{6}$/.test(totpCode) || Number.isNaN(totpValue)) {
+            setResult('TOTP code must be exactly 6 digits.', true);
+            return;
+        }
+
+        try {
+            setLoading(true);
+            const res = await fetch(`${apiBase}/verify`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-API-Key': apiKey
+                },
+                body: JSON.stringify({
+                    username,
+                    totp: totpValue
+                })
+            });
+            const data = await readResponseData(res);
+            if (!res.ok) {
+                throw new Error(data.error || JSON.stringify(data));
+            }
+            if (data.valid) {
+                setResult('Verification successful. valid = true');
+            } else {
+                setResult('Verification failed. valid = false', true);
+            }
+        } catch (e) {
+            setResult(`Verification failed: ${e.message}`, true);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    registerBtnEl.addEventListener('click', registerTotp);
+    verifyBtnEl.addEventListener('click', verifyTotp);
+    totpCodeEl.addEventListener('input', (event) => {
+        event.target.value = event.target.value.replace(/\D/g, '').slice(0, 6);
+    });
+    totpCodeEl.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            verifyTotp();
+        }
+    });
+
+    const savedApiKey = localStorage.getItem('totpTestApiKey');
+    const savedUsername = localStorage.getItem('totpTestUsername');
+    if (savedApiKey) {
+        apiKeyEl.value = savedApiKey;
+    }
+    if (savedUsername) {
+        usernameEl.value = savedUsername;
+    }
+
+    setResult('Ready. Click Register TOTP to begin.');
+</script>
+</body>
+</html>

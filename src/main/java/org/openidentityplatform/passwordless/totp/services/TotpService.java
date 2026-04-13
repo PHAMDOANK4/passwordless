@@ -42,7 +42,7 @@ public class TotpService {
     private static final String URI_TEMPLATE = "otpauth://totp/{0}:{1}@{2}?secret={3}&issuer={0}";
 
     public URI register(String username) {
-        Optional<RegisteredTotp> registeredTotpOptional = totpRepository.findById(username);
+        Optional<RegisteredTotp> registeredTotpOptional = totpRepository.findByUsername(username);
         final RegisteredTotp registeredTotp;
         if(registeredTotpOptional.isPresent()) {
             registeredTotp = registeredTotpOptional.get();
@@ -105,7 +105,7 @@ public class TotpService {
     }
 
     public boolean verify(String username, Integer totp) throws UserNotFoundException {
-        Optional<RegisteredTotp> registeredTotpOptional = totpRepository.findById(username);
+        Optional<RegisteredTotp> registeredTotpOptional = totpRepository.findByUsername(username);
         if(registeredTotpOptional.isEmpty()) {
             throw new UserNotFoundException();
         }
