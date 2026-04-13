@@ -42,7 +42,11 @@ This guide provides instructions for deploying the Passwordless Authentication S
 
 4. **Verify the service is running:**
    ```bash
+   # Direct app port
    curl http://localhost:8080/actuator/health
+
+   # Through nginx reverse proxy
+   curl http://localhost/actuator/health
    ```
 
 ### Using Pre-built Docker Image

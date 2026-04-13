@@ -245,7 +245,6 @@ $> docker run --publish=8080:8080  maximthomas/passwordless
 
 Build and run docker image using docker-compose
 ```
-$> ./mvnw install
 $> docker-compose up --build 
 ```
 

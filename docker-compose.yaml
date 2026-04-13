@@ -48,10 +48,9 @@ services:
       
       # WebAuthn configuration
       WEBAUTHN_SETTINGS_RPID: ${WEBAUTHN_RPID:-localhost}
-      WEBAUTHN_SETTINGS_ORIGIN: ${WEBAUTHN_ORIGIN:-http://localhost:8080}
-    # Nginx proxying is enabled, hence blocking raw exposure
-    # ports:
-    #   - "8080:8080"
+      WEBAUTHN_SETTINGS_ORIGIN: ${WEBAUTHN_ORIGIN:-http://localhost}
+    ports:
+      - "8080:8080"
     depends_on:
       mysql:
         condition: service_healthy
