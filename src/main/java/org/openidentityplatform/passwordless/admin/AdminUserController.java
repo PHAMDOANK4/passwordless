@@ -1,10 +1,19 @@
 package org.openidentityplatform.passwordless.admin;
 
+import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
+import org.openidentityplatform.passwordless.iam.dto.CreateUserRequest;
+import org.openidentityplatform.passwordless.iam.models.Domain;
 import org.openidentityplatform.passwordless.iam.models.User;
+import org.openidentityplatform.passwordless.iam.repositories.DomainRepository;
 import org.openidentityplatform.passwordless.iam.repositories.UserRepository;
 import org.openidentityplatform.passwordless.otp.models.SentOtp;
 import org.openidentityplatform.passwordless.otp.repositories.SentOtpRepository;
+import org.openidentityplatform.passwordless.oauth2.models.Session;
+import org.openidentityplatform.passwordless.oauth2.repositories.AuthorizationCodeRepository;
+import org.openidentityplatform.passwordless.oauth2.repositories.SessionRepository;
+import org.openidentityplatform.passwordless.oauth2.repositories.TokenRepository;
+import org.openidentityplatform.passwordless.oauth2.services.SessionService;
 import org.openidentityplatform.passwordless.totp.models.RegisteredTotp;
 import org.openidentityplatform.passwordless.totp.repository.RegisteredTotpRepository;
 import org.openidentityplatform.passwordless.webauthn.repositories.UserAuthenticatorJPARepository;
@@ -14,12 +23,14 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
+import java.util.Locale;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -34,13 +45,62 @@ import java.util.stream.Collectors;
 public class AdminUserController {
 
     private final UserRepository userRepository;
+    private final DomainRepository domainRepository;
     private final RegisteredTotpRepository totpRepository;
     private final UserAuthenticatorJPARepository webAuthnRepository;
     private final SentOtpRepository sentOtpRepository;
+    private final SessionService sessionService;
+    private final AuthorizationCodeRepository authorizationCodeRepository;
+    private final TokenRepository tokenRepository;
+    private final SessionRepository userSessionRepository;
 
     // =========================================================
     // USER CRUD
     // =========================================================
+
+    /**
+     * Create/register a user for IdP services.
+     */
+    @PostMapping
+    @Transactional
+    public ResponseEntity<?> createUser(@RequestBody @Valid CreateUserRequest request) {
+        String email = request.getEmail().trim().toLowerCase(Locale.ROOT);
+        if (userRepository.existsByEmail(email)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("error", "User already exists"));
+        }
+
+        User user = new User();
+        user.setEmail(email);
+        user.setFirstName(request.getFirstName());
+        user.setLastName(request.getLastName());
+        user.setDisplayName(request.getFirstName() + " " + request.getLastName());
+        user.setPhoneNumber(request.getPhoneNumber());
+        user.setDomain(resolveDomainForEmail(email));
+        user.setStatus(User.UserStatus.ACTIVE);
+
+        if (request.getRole() != null && !request.getRole().isBlank()) {
+            try {
+                user.setRole(User.UserRole.valueOf(request.getRole().trim().toUpperCase(Locale.ROOT)));
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Invalid role"));
+            }
+        }
+
+        if (request.getPreferredMfaMethod() != null && !request.getPreferredMfaMethod().isBlank()) {
+            try {
+                user.setPreferredMfaMethod(parsePreferredMfaMethod(request.getPreferredMfaMethod()));
+                user.setMfaEnabled(true);
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Invalid preferredMfaMethod"));
+            }
+        } else {
+            user.setMfaEnabled(Boolean.TRUE.equals(request.getMfaEnabled()));
+        }
+
+        User saved = userRepository.save(user);
+        return ResponseEntity.status(HttpStatus.CREATED).body(toUserDetail(saved));
+    }
 
     /**
      * List users with pagination, search, and status filter.
@@ -179,6 +239,9 @@ public class AdminUserController {
 
         try {
             // Delete dependent auth records first to avoid FK constraint violations.
+            authorizationCodeRepository.deleteByUserId(id);
+            tokenRepository.deleteByUserId(id);
+            userSessionRepository.deleteByUserId(id);
             totpRepository.deleteByUserId(id);
             webAuthnRepository.deleteByUserId(id);
             userRepository.deleteById(id);
@@ -186,6 +249,101 @@ public class AdminUserController {
         } catch (DataIntegrityViolationException ex) {
             return ResponseEntity.status(409).build();
         }
+    }
+
+    /**
+     * Consolidated registration status across OTP email, TOTP, and WebAuthn passkeys.
+     */
+    @GetMapping("/{id}/auth-registrations")
+    public ResponseEntity<Map<String, Object>> getAuthRegistrations(@PathVariable String id) {
+        return userRepository.findById(id)
+                .map(user -> {
+                    List<RegisteredTotp> totpKeys = totpRepository.findByUserIdOrderByUsername(id);
+                    List<WebAuthnAuthenticatorEntity> passkeys = webAuthnRepository.findByUserIdOrderByCreatedAtDesc(id);
+                    int activeSessionCount = sessionService.findActiveSessionsByUser(user).size();
+
+                    Map<String, Object> response = new LinkedHashMap<>();
+                    response.put("userId", user.getId());
+                    response.put("email", user.getEmail());
+                    response.put("mfaEnabled", user.isMfaEnabled());
+                    response.put("preferredMfaMethod", user.getPreferredMfaMethod() != null ? user.getPreferredMfaMethod().name() : null);
+
+                    Map<String, Object> otp = new LinkedHashMap<>();
+                    otp.put("registered", user.getEmail() != null && !user.getEmail().isBlank());
+                    otp.put("channel", "EMAIL");
+                    otp.put("destination", user.getEmail());
+
+                    Map<String, Object> totp = new LinkedHashMap<>();
+                    totp.put("registered", !totpKeys.isEmpty());
+                    totp.put("count", totpKeys.size());
+                    totp.put("usernames", totpKeys.stream().map(RegisteredTotp::getUsername).collect(Collectors.toList()));
+
+                    Map<String, Object> webauthn = new LinkedHashMap<>();
+                    webauthn.put("registered", !passkeys.isEmpty());
+                    webauthn.put("count", passkeys.size());
+                    webauthn.put("credentials", passkeys.stream().map(p -> {
+                        Map<String, Object> m = new LinkedHashMap<>();
+                        m.put("id", p.getId());
+                        m.put("credentialId", p.getCredentialId());
+                        m.put("deviceName", p.getDeviceName());
+                        m.put("createdAt", p.getCreatedAt());
+                        m.put("lastUsedAt", p.getLastUsedAt());
+                        return m;
+                    }).collect(Collectors.toList()));
+
+                    response.put("otp", otp);
+                    response.put("totp", totp);
+                    response.put("webauthn", webauthn);
+                    response.put("activeSessionCount", activeSessionCount);
+
+                    return ResponseEntity.ok(response);
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * Set preferred MFA method with registration-aware validation.
+     */
+    @PutMapping("/{id}/preferred-mfa")
+    public ResponseEntity<?> setPreferredMfa(
+            @PathVariable String id,
+            @RequestBody Map<String, Object> request
+    ) {
+        return userRepository.findById(id)
+                .map(user -> {
+                    Object rawMethod = request.get("preferredMfaMethod");
+                    if (rawMethod == null || rawMethod.toString().isBlank()) {
+                        return ResponseEntity.badRequest().body(Map.of("error", "preferredMfaMethod is required"));
+                    }
+
+                    final User.MfaMethod method;
+                    try {
+                        method = parsePreferredMfaMethod(rawMethod.toString());
+                    } catch (IllegalArgumentException e) {
+                        return ResponseEntity.badRequest().body(Map.of("error", "Invalid preferredMfaMethod"));
+                    }
+
+                    if (method == User.MfaMethod.EMAIL && (user.getEmail() == null || user.getEmail().isBlank())) {
+                        return ResponseEntity.badRequest().body(Map.of("error", "User does not have email OTP destination"));
+                    }
+                    if (method == User.MfaMethod.TOTP && totpRepository.countByUserId(id) == 0) {
+                        return ResponseEntity.badRequest().body(Map.of("error", "User does not have registered TOTP key"));
+                    }
+                    if (method == User.MfaMethod.WEBAUTHN && webAuthnRepository.countByUserId(id) == 0) {
+                        return ResponseEntity.badRequest().body(Map.of("error", "User does not have registered WebAuthn passkey"));
+                    }
+
+                    user.setPreferredMfaMethod(method);
+                    if (request.containsKey("mfaEnabled")) {
+                        user.setMfaEnabled(Boolean.parseBoolean(String.valueOf(request.get("mfaEnabled"))));
+                    } else {
+                        user.setMfaEnabled(true);
+                    }
+
+                    User saved = userRepository.save(user);
+                    return ResponseEntity.ok(toUserDetail(saved));
+                })
+                .orElse(ResponseEntity.notFound().build());
     }
 
     // =========================================================
@@ -306,6 +464,80 @@ public class AdminUserController {
     }
 
     // =========================================================
+    // IDP SESSIONS
+    // =========================================================
+
+    /**
+     * Get active IdP sessions for a user.
+     */
+    @GetMapping("/{id}/sessions")
+    public ResponseEntity<List<Map<String, Object>>> getUserSessions(@PathVariable String id) {
+        return userRepository.findById(id)
+                .map(user -> {
+                    List<Session> sessions = sessionService.findActiveSessionsByUser(user);
+                    List<Map<String, Object>> result = sessions.stream().map(s -> {
+                        Map<String, Object> m = new LinkedHashMap<>();
+                        m.put("sessionId", s.getSessionId());
+                        m.put("ipAddress", s.getIpAddress());
+                        m.put("deviceInfo", s.getDeviceInfo());
+                        m.put("authMethod", s.getAuthMethod() != null ? s.getAuthMethod().name() : null);
+                        m.put("authLevel", s.getAuthLevel());
+                        m.put("createdAt", s.getCreatedAt());
+                        m.put("lastActivityAt", s.getLastActivityAt());
+                        m.put("expiresAt", s.getExpiresAt());
+                        m.put("active", s.isActive());
+                        return m;
+                    }).collect(Collectors.toList());
+                    return ResponseEntity.ok(result);
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * Revoke a specific active session for a user.
+     */
+    @PostMapping("/{id}/sessions/{sessionId}/revoke")
+    public ResponseEntity<Map<String, Object>> revokeUserSession(
+            @PathVariable String id,
+            @PathVariable String sessionId
+    ) {
+        Optional<User> userOpt = userRepository.findById(id);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        boolean belongsToUser = sessionService.findActiveSessionsByUser(userOpt.get()).stream()
+                .anyMatch(s -> sessionId.equals(s.getSessionId()));
+
+        if (!belongsToUser) {
+            return ResponseEntity.notFound().build();
+        }
+
+        sessionService.revokeSession(sessionId, "admin_revoke_session");
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("status", "revoked");
+        response.put("sessionId", sessionId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Revoke all active sessions for a user.
+     */
+    @PostMapping("/{id}/sessions/revoke-all")
+    public ResponseEntity<Map<String, Object>> revokeAllUserSessions(@PathVariable String id) {
+        Optional<User> userOpt = userRepository.findById(id);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        int revokedCount = sessionService.revokeAllUserSessions(userOpt.get(), "admin_revoke_all_sessions");
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("status", "revoked_all");
+        response.put("revokedCount", revokedCount);
+        return ResponseEntity.ok(response);
+    }
+
+    // =========================================================
     // Private helpers
     // =========================================================
 
@@ -345,5 +577,35 @@ public class AdminUserController {
         m.put("externalId", u.getExternalId());
         m.put("profilePictureUrl", u.getProfilePictureUrl());
         return m;
+    }
+
+    private Domain resolveDomainForEmail(String email) {
+        String domainName = "default.com";
+        int at = email.indexOf('@');
+        if (at > -1 && at < email.length() - 1) {
+            domainName = email.substring(at + 1).toLowerCase(Locale.ROOT);
+        }
+
+        String finalDomainName = domainName;
+        return domainRepository.findByDomainName(domainName)
+                .orElseGet(() -> {
+                    Domain domain = new Domain();
+                    domain.setDomainName(finalDomainName);
+                    domain.setDisplayName(finalDomainName);
+                    domain.setOwnerEmail(email);
+                    domain.setActive(true);
+                    return domainRepository.save(domain);
+                });
+    }
+
+    private User.MfaMethod parsePreferredMfaMethod(String value) {
+        String normalized = value.trim().toUpperCase(Locale.ROOT);
+        if ("OTP".equals(normalized) || "EMAIL_OTP".equals(normalized)) {
+            return User.MfaMethod.EMAIL;
+        }
+        if ("PASSKEY".equals(normalized)) {
+            return User.MfaMethod.WEBAUTHN;
+        }
+        return User.MfaMethod.valueOf(normalized);
     }
 }

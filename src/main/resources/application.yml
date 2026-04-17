@@ -5,6 +5,11 @@ server:
         same-site: lax
 
 spring:
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
   mail:
     host: localhost
     port: 1025
@@ -78,6 +83,19 @@ otp:
       useDigits: true
       ttlMinutes: 3
       sender: "emailOtpSender"
+
+token:
+  issuer: "https://passwordless.actvn"
+  audience: "passwordless-clients"
+  accessTokenLifetimeSeconds: 900
+  refreshTokenLifetimeSeconds: 2592000
+  signingSecret: "change-this-in-production"
+
+auth:
+  transactionTtlSeconds: 300
+  lockoutMaxAttempts: 5
+  lockoutDurationSeconds: 900
+  sessionTtlSeconds: 86400
 
 webauthn:
   settings:

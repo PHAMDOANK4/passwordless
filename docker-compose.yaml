@@ -23,6 +23,18 @@ services:
       - passwordless-network
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    container_name: passwordless-redis
+    expose:
+      - "6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    networks:
+      - passwordless-network
+    restart: unless-stopped
+
   passwordless-service:
     image: maximthomas/passwordless
     container_name: passwordless-service
@@ -58,9 +70,15 @@ services:
       WEBAUTHN_SETTINGS_RPID: passwordless.actvn
       WEBAUTHN_SETTINGS_ORIGIN: https://passwordless.actvn
 
+      # Redis (session/challenge/rate-limit state)
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+
     depends_on:
       mysql:
         condition: service_healthy
+      redis:
+        condition: service_started
     networks:
       - passwordless-network
     restart: unless-stopped
@@ -116,6 +134,8 @@ services:
 
 volumes:
   mysql-data:
+    driver: local
+  redis-data:
     driver: local
 
 networks:

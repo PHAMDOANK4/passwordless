@@ -4,6 +4,12 @@
 
 This service provides a centralized authentication platform that allows external applications to leverage passwordless authentication without implementing it themselves. Applications register with the service, receive an API key, and can use OTP, TOTP, and WebAuthn authentication methods.
 
+## IdP Portal Flow Documentation
+
+For the end-user Identity Provider portal (`/idp`) flow documentation, including request and response payload examples for registration, login/MFA, OAuth2 authorization, sessions, and token refresh, see:
+
+- [IdP Portal Guide](IDP_PORTAL_GUIDE.md)
+
 ## Architecture
 
 ```

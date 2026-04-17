@@ -2,6 +2,7 @@ package org.openidentityplatform.passwordless.oauth2.repositories;
 
 import org.openidentityplatform.passwordless.oauth2.models.Session;
 import org.openidentityplatform.passwordless.iam.models.User;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -47,6 +48,7 @@ public interface SessionRepository extends JpaRepository<Session, UUID> {
     /**
      * Revoke session
      */
+    @Modifying
     @Query("UPDATE Session s SET s.revoked = true, s.revokedAt = :now, s.revokedReason = :reason " +
            "WHERE s.sessionId = :sessionId")
     void revokeSession(@Param("sessionId") String sessionId, 
@@ -56,6 +58,7 @@ public interface SessionRepository extends JpaRepository<Session, UUID> {
     /**
      * Revoke all sessions for a user
      */
+    @Modifying
     @Query("UPDATE Session s SET s.revoked = true, s.revokedAt = :now, s.revokedReason = :reason " +
            "WHERE s.user = :user AND s.revoked = false")
     void revokeAllUserSessions(@Param("user") User user, 
@@ -71,4 +74,11 @@ public interface SessionRepository extends JpaRepository<Session, UUID> {
      * Find sessions by IP address (for security monitoring)
      */
     List<Session> findByIpAddressAndUserOrderByCreatedAtDesc(String ipAddress, User user);
+
+       /**
+        * Delete all sessions belonging to a user.
+        */
+       @Modifying
+       @Query("DELETE FROM Session s WHERE s.user.id = :userId")
+       int deleteByUserId(@Param("userId") String userId);
 }

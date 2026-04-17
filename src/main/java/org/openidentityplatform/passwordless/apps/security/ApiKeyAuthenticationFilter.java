@@ -26,6 +26,7 @@ import org.openidentityplatform.passwordless.apps.models.RegisteredApp;
 import org.openidentityplatform.passwordless.apps.services.AppRegistrationService;
 import org.openidentityplatform.passwordless.apps.services.AuditLogService;
 import org.openidentityplatform.passwordless.apps.services.RateLimitService;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -37,6 +38,7 @@ import java.util.Collections;
 import java.util.Optional;
 
 @Component
+@ConditionalOnProperty(value = "security.api-key-filter.enabled", havingValue = "true", matchIfMissing = true)
 @AllArgsConstructor
 @Slf4j
 public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {

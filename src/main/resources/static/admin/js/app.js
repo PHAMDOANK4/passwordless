@@ -17,6 +17,9 @@ const API = {
     passkeys: id => `/admin/api/users/${id}/passkeys`,
     deletePasskey: (uid, kid) => `/admin/api/users/${uid}/passkeys/${kid}`,
     otpSessions: id => `/admin/api/users/${id}/otp-sessions`,
+    sessions: id => `/admin/api/users/${id}/sessions`,
+    revokeSession: (uid, sid) => `/admin/api/users/${uid}/sessions/${sid}/revoke`,
+    revokeAllSessions: id => `/admin/api/users/${id}/sessions/revoke-all`,
   },
   apps: {
     register: () => '/apps/v1/register',
@@ -25,6 +28,16 @@ const API = {
     activate: id => `/apps/v1/${id}/activate`,
     delete: id => `/apps/v1/${id}`,
     regenerateKey: id => `/apps/v1/${id}/regenerate-key`,
+  },
+  oauthClients: {
+    list: () => '/admin/api/oauth2/clients',
+    detail: id => `/admin/api/oauth2/clients/${id}`,
+    create: () => '/admin/api/oauth2/clients',
+    update: id => `/admin/api/oauth2/clients/${id}`,
+    activate: id => `/admin/api/oauth2/clients/${id}/activate`,
+    deactivate: id => `/admin/api/oauth2/clients/${id}/deactivate`,
+    rotateSecret: id => `/admin/api/oauth2/clients/${id}/rotate-secret`,
+    delete: id => `/admin/api/oauth2/clients/${id}`,
   },
   audit: {
     logs: (p, s) => `/apps/v1/audit/logs?page=${p}&size=${s}`,
@@ -142,7 +155,14 @@ function navigate(page, params = {}) {
   });
 
   // Update breadcrumb
-  const labels = { dashboard:'Dashboard', users:'Người dùng', 'user-detail':'Chi tiết người dùng', apps:'Ứng dụng', audit:'Audit Logs' };
+  const labels = {
+    dashboard:'Dashboard',
+    users:'Người dùng',
+    'user-detail':'Chi tiết người dùng',
+    apps:'Ứng dụng',
+    'oauth-clients':'OAuth2 Clients',
+    audit:'Audit Logs'
+  };
   const bc = document.getElementById('breadcrumb');
   if (page === 'user-detail') {
     bc.innerHTML = `<span onclick="navigate('users')" style="cursor:pointer;color:var(--text-muted)">Người dùng</span> <span style="color:var(--text-muted);margin:0 6px">/</span> <span>Chi tiết</span>`;
@@ -567,10 +587,12 @@ pages['user-detail'] = async function({ id }) {
               <button class="tab-btn active" data-tab="totp">🔑 TOTP Keys <span class="tab-count" id="tc-totp">${user.totpKeyCount||0}</span></button>
               <button class="tab-btn" data-tab="passkeys">🔐 Passkeys <span class="tab-count" id="tc-pass">${user.passkeyCount||0}</span></button>
               <button class="tab-btn" data-tab="otp">📱 OTP Sessions</button>
+              <button class="tab-btn" data-tab="sessions">🧠 IdP Sessions</button>
             </div>
             <div id="tab-totp" class="tab-panel active"><div class="page-loading" style="padding:30px"><div class="spinner"></div></div></div>
             <div id="tab-passkeys" class="tab-panel"><div class="page-loading" style="padding:30px"><div class="spinner"></div></div></div>
             <div id="tab-otp" class="tab-panel"><div class="page-loading" style="padding:30px"><div class="spinner"></div></div></div>
+            <div id="tab-sessions" class="tab-panel"><div class="page-loading" style="padding:30px"><div class="spinner"></div></div></div>
           </div>
         </div>
       </div>`;
@@ -591,6 +613,7 @@ pages['user-detail'] = async function({ id }) {
     loadTotpTab(id);
     loadPasskeysTab(id);
     loadOtpTab(id);
+    loadIdpSessionsTab(id);
 
   } catch(e) {
     content.innerHTML = errorState('Không tải được chi tiết người dùng.');
@@ -670,6 +693,68 @@ async function loadOtpTab(userId) {
         </table>
       </div>`;
   } catch(e) { panel.innerHTML = errorState('Không tải được OTP sessions'); }
+}
+
+async function loadIdpSessionsTab(userId) {
+  const panel = document.getElementById('tab-sessions');
+  try {
+    const sessions = await apiFetch(API.users.sessions(userId));
+    if (!sessions.length) {
+      panel.innerHTML = emptyKeys('Không có IdP session đang hoạt động');
+      return;
+    }
+
+    panel.innerHTML = `
+      <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+        <button class="btn btn-sm btn-danger" id="revokeAllSessionsBtn">Revoke All Sessions</button>
+      </div>
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead><tr><th>Session ID</th><th>Auth</th><th>IP</th><th>Device</th><th>Last Activity</th><th>Expires</th><th>Action</th></tr></thead>
+          <tbody>${sessions.map(s => `
+            <tr>
+              <td><code style="font-size:11px">${truncate(s.sessionId, 22)}</code></td>
+              <td>${mfaBadge(s.authMethod || 'OTP')} <span style="font-size:11px;color:var(--text-muted)">L${s.authLevel ?? 1}</span></td>
+              <td style="font-size:12px;font-family:monospace">${s.ipAddress || '—'}</td>
+              <td style="font-size:12px;max-width:260px">${truncate(s.deviceInfo || 'Unknown', 58)}</td>
+              <td style="font-size:12px">${fmtDate(s.lastActivityAt)}</td>
+              <td style="font-size:12px">${fmtDate(s.expiresAt)}</td>
+              <td><button class="btn btn-sm btn-warning" data-revoke-session="${s.sessionId}">Revoke</button></td>
+            </tr>`).join('')}</tbody>
+        </table>
+      </div>`;
+
+    document.getElementById('revokeAllSessionsBtn').onclick = () => revokeAllUserSessions(userId);
+    panel.querySelectorAll('[data-revoke-session]').forEach(btn => {
+      btn.onclick = () => revokeUserSession(userId, btn.dataset.revokeSession);
+    });
+  } catch (e) {
+    panel.innerHTML = errorState('Không tải được IdP sessions');
+  }
+}
+
+async function revokeUserSession(userId, sessionId) {
+  const ok = await showConfirm('Revoke Session', `Thu hồi session <strong>${sessionId}</strong>?`);
+  if (!ok) return;
+  try {
+    await apiFetch(API.users.revokeSession(userId, sessionId), { method: 'POST' });
+    showToast('Đã thu hồi session', 'success');
+    loadIdpSessionsTab(userId);
+  } catch (e) {
+    showToast(`Thu hồi thất bại: ${e.message}`, 'error');
+  }
+}
+
+async function revokeAllUserSessions(userId) {
+  const ok = await showConfirm('Revoke All Sessions', 'Thu hồi tất cả session đang hoạt động của user này?');
+  if (!ok) return;
+  try {
+    const res = await apiFetch(API.users.revokeAllSessions(userId), { method: 'POST' });
+    showToast(`Đã thu hồi ${res.revokedCount ?? 0} session`, 'success');
+    loadIdpSessionsTab(userId);
+  } catch (e) {
+    showToast(`Thu hồi thất bại: ${e.message}`, 'error');
+  }
 }
 
 async function deleteTotpKey(userId, keyId, username) {
@@ -896,6 +981,352 @@ function showGeneratedApiKey(app) {
       showToast('Đã copy API key', 'success');
     } catch (_) {
       showToast('Không thể copy tự động, vui lòng copy thủ công', 'error');
+    }
+  };
+}
+
+// =========================================================
+// PAGE: OAUTH2 CLIENTS
+// =========================================================
+pages['oauth-clients'] = async function () {
+  const content = document.getElementById('mainContent');
+  content.innerHTML = `<div class="page-header"><h1>OAuth2 Clients</h1><p>Quản lý OAuth clients cho Authorization Code + OIDC flow</p></div>
+    <div class="card">
+      <div class="tabs" id="oauthTabs">
+        <button class="tab-btn active" data-oauth-tab="list">🧩 Danh sách Clients</button>
+        <button class="tab-btn" data-oauth-tab="create">🆕 Tạo Client</button>
+      </div>
+      <div id="oauthListTab" class="tab-panel active">
+        <div class="card-header"><div class="card-title">🔐 OAuth2 Client Registry</div></div>
+        <div id="oauthClientsArea"><div class="page-loading" style="padding:30px"><div class="spinner"></div></div></div>
+      </div>
+      <div id="oauthCreateTab" class="tab-panel">
+        <div class="card-header"><div class="card-title">➕ Provision OAuth2 Client</div></div>
+        <div class="card-body" id="oauthClientCreateBody"></div>
+      </div>
+    </div>`;
+
+  renderOAuthClientCreator();
+  await loadOAuthClientsCards();
+
+  document.querySelectorAll('#oauthTabs .tab-btn').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('#oauthTabs .tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('#mainContent .tab-panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      if (btn.dataset.oauthTab === 'create') {
+        document.getElementById('oauthCreateTab').classList.add('active');
+      } else {
+        document.getElementById('oauthListTab').classList.add('active');
+      }
+    };
+  });
+};
+
+async function loadOAuthClientsCards() {
+  const area = document.getElementById('oauthClientsArea');
+  if (!area) return;
+  area.innerHTML = '<div class="page-loading" style="padding:30px"><div class="spinner"></div></div>';
+
+  try {
+    const clients = await apiFetch(API.oauthClients.list());
+    if (!clients.length) {
+      area.innerHTML = emptyKeys('Chưa có OAuth client nào');
+      return;
+    }
+
+    area.innerHTML = `<div class="apps-grid">${clients.map(c => oauthClientCard(c)).join('')}</div>`;
+    area.querySelectorAll('[data-oauth-action]').forEach(btn => {
+      btn.onclick = () => handleOAuthClientAction(btn.dataset.oauthAction, btn.dataset.id, btn.dataset.name);
+    });
+  } catch (e) {
+    area.innerHTML = errorState('Không tải được OAuth clients');
+  }
+}
+
+function oauthClientCard(client) {
+  const redirects = (client.redirectUris || []).slice(0, 2).map(v => `<div class="app-meta-item" style="font-family:monospace">↳ ${truncate(v, 56)}</div>`).join('');
+  const scopes = (client.allowedScopes || []).map(s => `<span class="badge badge-otp">${s}</span>`).join(' ');
+  const activeBadge = client.active
+    ? '<span class="badge badge-active"><span class="badge-dot"></span>Active</span>'
+    : '<span class="badge badge-suspended">Inactive</span>';
+
+  return `<div class="app-card">
+    <div>
+      <div class="app-card-name">${client.clientName}</div>
+      <div class="app-card-desc" style="font-family:monospace">client_id: ${client.clientId}</div>
+      <div class="app-card-meta">
+        <span class="app-meta-item"><strong>Domain:</strong> ${client.domainName || 'default.com'}</span>
+        <span class="app-meta-item"><strong>PKCE:</strong> ${client.requirePkce ? 'Required' : 'Optional'}</span>
+        <span class="app-meta-item"><strong>Grant:</strong> ${(client.grantTypes || []).join(', ') || 'authorization_code'}</span>
+        <span class="app-meta-item"><strong>Created:</strong> ${fmtDate(client.createdAt)}</span>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${scopes || '<span class="badge">openid</span>'}</div>
+      <div style="display:grid;gap:2px;margin-top:8px">${redirects || '<div class="app-meta-item">↳ No redirect URI</div>'}</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+      ${activeBadge}
+      <div class="actions">
+        <button class="btn btn-sm" data-oauth-action="edit" data-id="${client.id}" data-name="${client.clientName}">Edit</button>
+        ${client.active
+          ? `<button class="btn btn-sm btn-warning" data-oauth-action="deactivate" data-id="${client.id}" data-name="${client.clientName}">Deactivate</button>`
+          : `<button class="btn btn-sm btn-success" data-oauth-action="activate" data-id="${client.id}" data-name="${client.clientName}">Activate</button>`}
+        <button class="btn btn-sm" data-oauth-action="rotate" data-id="${client.id}" data-name="${client.clientName}">Rotate Secret</button>
+        <button class="btn btn-sm btn-danger" data-oauth-action="delete" data-id="${client.id}" data-name="${client.clientName}">Delete</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function handleOAuthClientAction(action, id, name) {
+  if (action === 'edit') {
+    const client = await apiFetch(API.oauthClients.detail(id));
+    populateOAuthClientForm(client);
+    showToast(`Editing ${name}`, 'info');
+
+    const createTabButton = document.querySelector('#oauthTabs .tab-btn[data-oauth-tab="create"]');
+    if (createTabButton) {
+      createTabButton.click();
+    }
+    return;
+  }
+
+  if (action === 'activate') {
+    await apiFetch(API.oauthClients.activate(id), { method: 'POST' });
+    showToast('Đã kích hoạt OAuth client', 'success');
+    await loadOAuthClientsCards();
+    return;
+  }
+
+  if (action === 'deactivate') {
+    const ok = await showConfirm('Deactivate OAuth Client', `Ngừng hoạt động client <strong>${name}</strong>?`);
+    if (!ok) return;
+    await apiFetch(API.oauthClients.deactivate(id), { method: 'POST' });
+    showToast('Đã deactivate OAuth client', 'success');
+    await loadOAuthClientsCards();
+    return;
+  }
+
+  if (action === 'rotate') {
+    const ok = await showConfirm('Rotate Client Secret', `Tạo client secret mới cho <strong>${name}</strong>? Secret cũ sẽ vô hiệu ngay.`);
+    if (!ok) return;
+    const secret = await apiFetch(API.oauthClients.rotateSecret(id), { method: 'POST' });
+    showOAuthClientSecret(secret, 'Client secret đã được xoay vòng thành công');
+    showToast('Đã rotate secret', 'success');
+    return;
+  }
+
+  if (action === 'delete') {
+    const ok = await showConfirm('Delete OAuth Client', `<span style="color:var(--rose)">⚠️ Không thể hoàn tác!</span><br>Xóa client <strong>${name}</strong>?`);
+    if (!ok) return;
+    await apiFetch(API.oauthClients.delete(id), { method: 'DELETE' });
+    showToast('Đã xóa OAuth client', 'success');
+    await loadOAuthClientsCards();
+  }
+}
+
+function renderOAuthClientCreator() {
+  const body = document.getElementById('oauthClientCreateBody');
+  if (!body) return;
+
+  body.innerHTML = `
+    <form id="oauthClientForm" style="display:grid;gap:14px;max-width:860px">
+      <input type="hidden" id="oauthEditId" value="" />
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px">
+        <div>
+          <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px">Client Name *</label>
+          <input id="oauthClientName" class="filter-input" placeholder="My Web App" required />
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px">Client ID (optional)</label>
+          <input id="oauthClientId" class="filter-input" placeholder="web-app-prod" />
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px">
+        <div>
+          <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px">Domain</label>
+          <input id="oauthDomain" class="filter-input" value="default.com" />
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px">Created By</label>
+          <input id="oauthCreatedBy" class="filter-input" value="admin-ui" />
+        </div>
+      </div>
+
+      <div>
+        <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px">Redirect URIs * (mỗi dòng một URI)</label>
+        <textarea id="oauthRedirectUris" class="filter-input" style="min-height:110px;resize:vertical">https://localhost/callback</textarea>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px">
+        <div>
+          <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px">Allowed Scopes (space/comma separated)</label>
+          <input id="oauthScopes" class="filter-input" value="openid profile email" />
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px">Grant Types (comma separated)</label>
+          <input id="oauthGrantTypes" class="filter-input" value="authorization_code,refresh_token" />
+        </div>
+      </div>
+
+      <div style="display:flex;gap:18px;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="oauthRequirePkce" checked /> Require PKCE</label>
+        <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="oauthActive" checked /> Active after create</label>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button type="submit" class="btn btn-success" id="oauthSubmitBtn">Create OAuth Client</button>
+        <button type="button" class="btn btn-ghost" id="oauthCancelEditBtn" style="display:none">Cancel Edit</button>
+        <span style="font-size:12px;color:var(--text-muted)">Client secret chỉ hiển thị một lần.</span>
+      </div>
+    </form>
+    <div id="oauthClientSecretResult" style="margin-top:16px"></div>`;
+
+  document.getElementById('oauthClientForm').addEventListener('submit', handleCreateOAuthClient);
+  document.getElementById('oauthCancelEditBtn').onclick = () => clearOAuthClientEditState(true);
+}
+
+async function handleCreateOAuthClient(event) {
+  event.preventDefault();
+  const submitBtn = document.getElementById('oauthSubmitBtn');
+  const editId = document.getElementById('oauthEditId').value.trim();
+
+  const redirectUris = document.getElementById('oauthRedirectUris').value
+    .split('\n')
+    .map(v => v.trim())
+    .filter(Boolean);
+
+  const allowedScopes = document.getElementById('oauthScopes').value
+    .split(/[ ,]+/)
+    .map(v => v.trim())
+    .filter(Boolean);
+
+  const grantTypes = document.getElementById('oauthGrantTypes').value
+    .split(',')
+    .map(v => v.trim())
+    .filter(Boolean);
+
+  if (!redirectUris.length) {
+    showToast('Cần ít nhất 1 redirect URI', 'error');
+    return;
+  }
+
+  const payload = {
+    clientName: document.getElementById('oauthClientName').value.trim(),
+    clientId: document.getElementById('oauthClientId').value.trim() || null,
+    domainName: document.getElementById('oauthDomain').value.trim() || 'default.com',
+    createdBy: document.getElementById('oauthCreatedBy').value.trim() || 'admin-ui',
+    redirectUris,
+    allowedScopes,
+    grantTypes,
+    requirePkce: document.getElementById('oauthRequirePkce').checked,
+    active: document.getElementById('oauthActive').checked
+  };
+
+  if (!payload.clientName) {
+    showToast('Client name không được để trống', 'error');
+    return;
+  }
+
+  try {
+    submitBtn.disabled = true;
+    submitBtn.textContent = editId ? 'Đang cập nhật...' : 'Đang tạo...';
+
+    if (editId) {
+      await apiFetch(API.oauthClients.update(editId), {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      });
+      showToast('Đã cập nhật OAuth client', 'success');
+      clearOAuthClientEditState(false);
+    } else {
+      const secret = await apiFetch(API.oauthClients.create(), {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      showOAuthClientSecret(secret, 'Tạo OAuth client thành công');
+      showToast('Đã tạo OAuth client', 'success');
+    }
+
+    await loadOAuthClientsCards();
+  } catch (e) {
+    const actionLabel = editId ? 'cập nhật' : 'tạo';
+    showToast(`Không thể ${actionLabel} client: ${e.message}`, 'error');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = document.getElementById('oauthEditId').value.trim()
+      ? 'Update OAuth Client'
+      : 'Create OAuth Client';
+  }
+}
+
+function populateOAuthClientForm(client) {
+  document.getElementById('oauthEditId').value = client.id || '';
+  document.getElementById('oauthClientName').value = client.clientName || '';
+  document.getElementById('oauthClientId').value = client.clientId || '';
+  document.getElementById('oauthDomain').value = client.domainName || 'default.com';
+  document.getElementById('oauthRedirectUris').value = (client.redirectUris || []).join('\n');
+  document.getElementById('oauthScopes').value = (client.allowedScopes || []).join(' ');
+  document.getElementById('oauthGrantTypes').value = (client.grantTypes || []).join(',');
+  document.getElementById('oauthRequirePkce').checked = !!client.requirePkce;
+  document.getElementById('oauthActive').checked = !!client.active;
+
+  document.getElementById('oauthSubmitBtn').textContent = 'Update OAuth Client';
+  document.getElementById('oauthCancelEditBtn').style.display = 'inline-flex';
+}
+
+function clearOAuthClientEditState(clearSecretResult) {
+  const form = document.getElementById('oauthClientForm');
+  if (form) {
+    form.reset();
+  }
+
+  document.getElementById('oauthEditId').value = '';
+  document.getElementById('oauthDomain').value = 'default.com';
+  document.getElementById('oauthCreatedBy').value = 'admin-ui';
+  document.getElementById('oauthRedirectUris').value = 'https://localhost/callback';
+  document.getElementById('oauthScopes').value = 'openid profile email';
+  document.getElementById('oauthGrantTypes').value = 'authorization_code,refresh_token';
+  document.getElementById('oauthRequirePkce').checked = true;
+  document.getElementById('oauthActive').checked = true;
+
+  document.getElementById('oauthSubmitBtn').textContent = 'Create OAuth Client';
+  document.getElementById('oauthCancelEditBtn').style.display = 'none';
+
+  if (clearSecretResult) {
+    const secretArea = document.getElementById('oauthClientSecretResult');
+    if (secretArea) {
+      secretArea.innerHTML = '';
+    }
+  }
+}
+
+function showOAuthClientSecret(secret, heading) {
+  const result = document.getElementById('oauthClientSecretResult');
+  if (!result || !secret || !secret.clientSecret) return;
+
+  result.innerHTML = `
+    <div class="info-grid">
+      <div class="info-item"><div class="info-label">Client ID</div><div class="info-value" style="font-family:monospace">${secret.clientId}</div></div>
+      <div class="info-item"><div class="info-label">Issued At</div><div class="info-value">${fmtDate(secret.issuedAt)}</div></div>
+      <div class="info-item" style="grid-column:1/-1">
+        <div class="info-label">Client Secret</div>
+        <div class="info-value" style="font-family:monospace;word-break:break-all">${secret.clientSecret}</div>
+      </div>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-sm" id="copyOAuthSecretBtn">Copy Client Secret</button>
+      <span style="font-size:12px;color:var(--text-muted)">${heading || 'Client secret chỉ hiển thị một lần.'}</span>
+    </div>`;
+
+  const copyBtn = document.getElementById('copyOAuthSecretBtn');
+  copyBtn.onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(secret.clientSecret);
+      showToast('Đã copy client secret', 'success');
+    } catch (_) {
+      showToast('Không thể copy tự động', 'error');
     }
   };
 }

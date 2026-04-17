@@ -17,7 +17,6 @@ import java.util.UUID;
 @Entity
 @Table(name = "oauth_tokens", indexes = {
     @Index(name = "idx_token_user", columnList = "user_id"),
-    @Index(name = "idx_token_value", columnList = "token_value"),
     @Index(name = "idx_token_expires", columnList = "expires_at")
 })
 @Getter
@@ -46,6 +45,9 @@ public class Token {
     
     @Column(name = "client_id", length = 100)
     private String clientId;  // OAuth client that issued this token
+
+    @Column(name = "session_id", length = 100)
+    private String sessionId;  // Bound user session identifier
     
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;

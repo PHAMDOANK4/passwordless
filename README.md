@@ -10,6 +10,7 @@ A centralized authentication service that provides passwordless authentication m
 
 - **[API Documentation](docs/API_DOCUMENTATION.md)** - Complete API reference with examples
 - **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment instructions
+- **[IdP Portal Guide](docs/IDP_PORTAL_GUIDE.md)** - End-user /idp flows and example payloads
 - **[Quick Start](#quick-start)** - Get started in 5 minutes
 
 # Table of contents
@@ -22,6 +23,7 @@ A centralized authentication service that provides passwordless authentication m
   * [Rate Limiting](#rate-limiting)
   * [Audit Logging](#audit-logging)
 - [Quick start](#quick-start)
+- [IdP Portal (End-User Flows)](#idp-portal-end-user-flows)
 - [One Time Password Authentication](#one-time-password-authentication)
   * [Introduction](#introduction)
   * [Sample Use Cases](#sample-use-cases)
@@ -248,6 +250,17 @@ Build and run docker image using docker-compose
 $> ./mvnw install
 $> docker-compose up --build 
 ```
+
+# IdP Portal (End-User Flows)
+
+The end-user Identity Provider portal is available at:
+
+- `GET /idp`
+- `GET /idp/index.html`
+
+For full registration, login, MFA, OAuth2 authorization, session-management flow, and request/response payload examples, see:
+
+- **[IdP Portal Guide](docs/IDP_PORTAL_GUIDE.md)**
 
 # One Time Password Authentication
 

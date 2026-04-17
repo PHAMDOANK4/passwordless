@@ -67,4 +67,193 @@
         </createIndex>
     </changeSet>
 
+    <changeSet id="2" author="copilot">
+        <createTable tableName="token_blacklist">
+            <column name="id" type="varchar(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="jti" type="varchar(100)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="subject" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="expires_at" type="timestamp">
+                <constraints nullable="false"/>
+            </column>
+            <column name="revoked_at" type="timestamp">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reason" type="varchar(255)"/>
+        </createTable>
+
+        <createIndex tableName="token_blacklist" indexName="idx_blacklist_jti" unique="true">
+            <column name="jti"/>
+        </createIndex>
+        <createIndex tableName="token_blacklist" indexName="idx_blacklist_expires">
+            <column name="expires_at"/>
+        </createIndex>
+
+        <createIndex tableName="oauth_tokens" indexName="idx_token_expires">
+            <column name="expires_at"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="3" author="copilot">
+        <createTable tableName="oauth_clients">
+            <column name="id" type="varchar(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="client_id" type="varchar(100)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="client_secret" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="client_name" type="varchar(200)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="domain_id" type="varchar(36)"/>
+            <column name="redirect_uris" type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="allowed_scopes" type="varchar(500)"/>
+            <column name="grant_types" type="varchar(200)"/>
+            <column name="active" type="boolean" defaultValueBoolean="true"/>
+            <column name="require_pkce" type="boolean" defaultValueBoolean="true"/>
+            <column name="access_token_lifetime_seconds" type="int" defaultValueNumeric="3600"/>
+            <column name="refresh_token_lifetime_seconds" type="int" defaultValueNumeric="2592000"/>
+            <column name="id_token_lifetime_seconds" type="int" defaultValueNumeric="3600"/>
+            <column name="created_at" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="varchar(255)"/>
+        </createTable>
+        <createIndex tableName="oauth_clients" indexName="idx_client_id" unique="true">
+            <column name="client_id"/>
+        </createIndex>
+
+        <createTable tableName="authorization_codes">
+            <column name="id" type="varchar(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="code" type="varchar(100)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="user_id" type="varchar(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="client_id" type="varchar(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="oauth_client_id" type="varchar(36)"/>
+            <column name="redirect_uri" type="varchar(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="scopes" type="varchar(500)"/>
+            <column name="state" type="varchar(255)"/>
+            <column name="code_challenge" type="varchar(255)"/>
+            <column name="code_challenge_method" type="varchar(10)"/>
+            <column name="nonce" type="varchar(255)"/>
+            <column name="created_at" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="expires_at" type="timestamp">
+                <constraints nullable="false"/>
+            </column>
+            <column name="used" type="boolean" defaultValueBoolean="false"/>
+            <column name="used_at" type="timestamp"/>
+            <column name="ip_address" type="varchar(45)"/>
+            <column name="user_agent" type="varchar(500)"/>
+            <column name="auth_method" type="varchar(20)"/>
+        </createTable>
+        <createIndex tableName="authorization_codes" indexName="idx_authcode_code" unique="true">
+            <column name="code"/>
+        </createIndex>
+        <createIndex tableName="authorization_codes" indexName="idx_authcode_user">
+            <column name="user_id"/>
+        </createIndex>
+        <createIndex tableName="authorization_codes" indexName="idx_authcode_expires">
+            <column name="expires_at"/>
+        </createIndex>
+
+        <createTable tableName="oauth_tokens">
+            <column name="id" type="varchar(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="varchar(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="token_type" type="varchar(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="token_value" type="varchar(2048)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="scopes" type="varchar(500)"/>
+            <column name="client_id" type="varchar(100)"/>
+            <column name="session_id" type="varchar(100)"/>
+            <column name="created_at" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="expires_at" type="timestamp">
+                <constraints nullable="false"/>
+            </column>
+            <column name="revoked" type="boolean" defaultValueBoolean="false"/>
+            <column name="revoked_at" type="timestamp"/>
+            <column name="device_info" type="varchar(500)"/>
+            <column name="ip_address" type="varchar(45)"/>
+        </createTable>
+        <createIndex tableName="oauth_tokens" indexName="idx_token_user">
+            <column name="user_id"/>
+        </createIndex>
+        <createIndex tableName="oauth_tokens" indexName="idx_token_expires">
+            <column name="expires_at"/>
+        </createIndex>
+
+        <createTable tableName="user_sessions">
+            <column name="id" type="varchar(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="session_id" type="varchar(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="user_id" type="varchar(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="device_info" type="varchar(500)"/>
+            <column name="device_fingerprint" type="varchar(255)"/>
+            <column name="ip_address" type="varchar(45)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="location" type="varchar(200)"/>
+            <column name="created_at" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="expires_at" type="timestamp">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_activity_at" type="timestamp" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="revoked" type="boolean" defaultValueBoolean="false"/>
+            <column name="revoked_at" type="timestamp"/>
+            <column name="revoked_reason" type="varchar(255)"/>
+            <column name="auth_method" type="varchar(20)"/>
+            <column name="auth_level" type="int" defaultValueNumeric="1"/>
+        </createTable>
+        <createIndex tableName="user_sessions" indexName="idx_session_user">
+            <column name="user_id"/>
+        </createIndex>
+        <createIndex tableName="user_sessions" indexName="idx_session_id" unique="true">
+            <column name="session_id"/>
+        </createIndex>
+        <createIndex tableName="user_sessions" indexName="idx_session_expires">
+            <column name="expires_at"/>
+        </createIndex>
+    </changeSet>
+
 </databaseChangeLog>
