@@ -198,21 +198,85 @@ curl -X POST http://localhost:8080/otp/v1/send \
 
 ### WebAuthn (FIDO2) Authentication
 
-#### Start Registration
-- **POST** `/webauthn/v1/registration/start`
-- **Authentication:** Required (X-API-Key header)
+#### Begin USB Key Registration
+- **POST** `/webauthn/v1/register/begin`
+- **Authentication:** Browser session flow (no `X-API-Key` header required)
+- **Body:**
+  ```json
+  {
+    "username": "alice@example.com",
+    "authenticatorAttachment": "cross-platform",
+    "residentKeyRequired": false,
+    "userVerification": "preferred"
+  }
+  ```
+- **Response:**
+  ```json
+  {
+    "transactionId": "2f2f6f0a-f1e8-4f9b-a89a-7428a75f9e0e",
+    "publicKey": {
+      "challenge": "...",
+      "rp": {"id": "passwordless.actvn"},
+      "user": {"name": "alice@example.com"}
+    }
+  }
+  ```
 
-#### Finish Registration
-- **POST** `/webauthn/v1/registration/finish`
-- **Authentication:** Required (X-API-Key header)
+#### Finish USB Key Registration
+- **POST** `/webauthn/v1/register/finish`
+- **Authentication:** Browser session flow (no `X-API-Key` header required)
+- **Body:**
+  ```json
+  {
+    "transactionId": "2f2f6f0a-f1e8-4f9b-a89a-7428a75f9e0e",
+    "credential": {
+      "id": "...",
+      "rawId": "...",
+      "type": "public-key",
+      "response": {
+        "attestationObject": "...",
+        "clientDataJSON": "..."
+      }
+    }
+  }
+  ```
 
-#### Start Login
-- **POST** `/webauthn/v1/login/start`
-- **Authentication:** Required (X-API-Key header)
+#### Begin USB Key Login
+- **POST** `/webauthn/v1/login/begin`
+- **Authentication:** Browser session flow (no `X-API-Key` header required)
+- **Body:**
+  ```json
+  {
+    "username": "alice@example.com"
+  }
+  ```
 
-#### Finish Login
+#### Finish USB Key Login
 - **POST** `/webauthn/v1/login/finish`
-- **Authentication:** Required (X-API-Key header)
+- **Authentication:** Browser session flow (no `X-API-Key` header required)
+- **Body:**
+  ```json
+  {
+    "transactionId": "5c37a714-25cf-4da2-b6a2-2357f2f18e7b",
+    "assertion": {
+      "id": "...",
+      "rawId": "...",
+      "type": "public-key",
+      "response": {
+        "authenticatorData": "...",
+        "clientDataJSON": "...",
+        "signature": "...",
+        "userHandle": "..."
+      }
+    }
+  }
+  ```
+
+#### Legacy Compatibility Endpoints
+- **GET** `/webauthn/v1/register/challenge/{username}`
+- **POST** `/webauthn/v1/register/credential`
+- **GET** `/webauthn/v1/login/challenge/{username}`
+- **POST** `/webauthn/v1/login/credential`
 
 ### Audit Logging
 

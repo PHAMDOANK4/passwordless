@@ -41,7 +41,10 @@ import org.openidentityplatform.passwordless.webauthn.repositories.UserAuthentic
 import org.openidentityplatform.passwordless.webauthn.services.WebAuthnLoginService;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -53,6 +56,7 @@ import java.util.Set;
 public class AuthOrchestratorService {
 
     private static final String EMAIL_OTP_SETTING_ID = "emailOtp";
+    private static final int WEBAUTHN_CHALLENGE_BYTES = 32;
 
     private final AuthTransactionService authTransactionService;
     private final OtpService otpService;
@@ -68,6 +72,7 @@ public class AuthOrchestratorService {
     private final SessionService sessionService;
     private final AuthProperties authProperties;
     private final QrService qrService;
+    private final SecureRandom secureRandom = new SecureRandom();
 
     public AuthRegisterResponse register(AuthRegisterRequest request) throws InvalidAuthTransactionException {
         String email = request.getEmail().trim().toLowerCase(Locale.ROOT);
@@ -211,7 +216,11 @@ public class AuthOrchestratorService {
             message = "Enter TOTP code from authenticator app";
         } else {
             Set<com.webauthn4j.credential.CredentialRecord> authenticators = userAuthenticatorRepository.load(user.getEmail());
-            challenge = webAuthnLoginService.requestCredentials(user.getEmail(), httpRequest, authenticators);
+            byte[] webauthnChallenge = generateWebAuthnChallenge();
+            tx.setWebauthnChallenge(encodeWebAuthnChallenge(webauthnChallenge));
+            authTransactionService.save(tx);
+
+            challenge = webAuthnLoginService.requestCredentials(user.getEmail(), webauthnChallenge, authenticators);
             message = "Complete WebAuthn assertion";
         }
 
@@ -261,7 +270,8 @@ public class AuthOrchestratorService {
             }
             Set<com.webauthn4j.credential.CredentialRecord> authenticators = userAuthenticatorRepository.load(tx.getIdentifier());
             try {
-                webAuthnLoginService.processCredentials(tx.getIdentifier(), httpRequest, request.getWebauthnAssertion(), authenticators);
+                byte[] webauthnChallenge = decodeWebAuthnChallenge(tx);
+                webAuthnLoginService.processCredentials(tx.getIdentifier(), webauthnChallenge, request.getWebauthnAssertion(), authenticators);
                 valid = true;
             } catch (RuntimeException e) {
                 onVerificationFailed(tx, tx.getIdentifier());
@@ -526,5 +536,24 @@ public class AuthOrchestratorService {
             case TOTP -> User.MfaMethod.TOTP;
             case WEBAUTHN -> User.MfaMethod.WEBAUTHN;
         };
+    }
+
+    private byte[] generateWebAuthnChallenge() {
+        byte[] challenge = new byte[WEBAUTHN_CHALLENGE_BYTES];
+        secureRandom.nextBytes(challenge);
+        return challenge;
+    }
+
+    private String encodeWebAuthnChallenge(byte[] challenge) {
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(challenge);
+    }
+
+    private byte[] decodeWebAuthnChallenge(AuthTransactionState tx) {
+        if (tx.getWebauthnChallenge() != null && !tx.getWebauthnChallenge().isBlank()) {
+            return Base64.getUrlDecoder().decode(tx.getWebauthnChallenge());
+        }
+
+        // Backward compatibility for transactions created before explicit challenge support.
+        return tx.getId().getBytes(StandardCharsets.UTF_8);
     }
 }

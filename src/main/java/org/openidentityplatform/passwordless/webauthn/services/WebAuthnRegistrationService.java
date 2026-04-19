@@ -30,6 +30,7 @@ import com.webauthn4j.data.PublicKeyCredentialUserEntity;
 import com.webauthn4j.data.RegistrationData;
 import com.webauthn4j.data.RegistrationParameters;
 import com.webauthn4j.data.RegistrationRequest;
+import com.webauthn4j.data.AuthenticatorAttachment;
 import com.webauthn4j.data.UserVerificationRequirement;
 import com.webauthn4j.data.attestation.statement.COSEAlgorithmIdentifier;
 import com.webauthn4j.data.client.Origin;
@@ -79,7 +80,16 @@ public class WebAuthnRegistrationService {
 
     public PublicKeyCredentialCreationOptions requestCredentials(String username, HttpServletRequest request) {
 
-        Challenge challenge = new DefaultChallenge(request.getSession().getId().getBytes());
+                return requestCredentials(username, request.getSession().getId().getBytes(), null, null, null);
+        }
+
+        public PublicKeyCredentialCreationOptions requestCredentials(String username,
+                                                                                                                                 byte[] challengeBytes,
+                                                                                                                                 AuthenticatorAttachment attachmentOverride,
+                                                                                                                                 Boolean requireResidentKeyOverride,
+                                                                                                                                 UserVerificationRequirement userVerificationOverride) {
+
+                Challenge challenge = new DefaultChallenge(challengeBytes);
         PublicKeyCredentialRpEntity rp =
                 new PublicKeyCredentialRpEntity(webAuthnConfiguration.getRpId(), webAuthnConfiguration.getRpId());
 
@@ -87,14 +97,24 @@ public class WebAuthnRegistrationService {
                 username,
                 username);
 
-       UserVerificationRequirement userVerificationRequirement = UserVerificationRequirement.PREFERRED;
+        UserVerificationRequirement userVerificationRequirement = userVerificationOverride != null
+                ? userVerificationOverride
+                : UserVerificationRequirement.PREFERRED;
 
         List<PublicKeyCredentialDescriptor> excludeCredentials = Collections.emptyList();
 
+        AuthenticatorAttachment attachment = attachmentOverride != null
+                ? attachmentOverride
+                : webAuthnConfiguration.getAuthenticatorAttachment();
+
+        boolean requireResidentKey = requireResidentKeyOverride != null
+                ? requireResidentKeyOverride
+                : webAuthnConfiguration.isRequireResidentKey();
+
         AuthenticatorSelectionCriteria authenticatorSelectionCriteria =
                 new AuthenticatorSelectionCriteria(
-                        webAuthnConfiguration.getAuthenticatorAttachment(),
-                        true,
+                        attachment,
+                        requireResidentKey,
                         userVerificationRequirement);
 
         PublicKeyCredentialCreationOptions credentialCreationOptions = new PublicKeyCredentialCreationOptions(
@@ -114,7 +134,12 @@ public class WebAuthnRegistrationService {
 
     public CredentialRecord processCredentials(CredentialRequest credentialRequest, HttpServletRequest request)  {
 
-        Challenge challenge = new DefaultChallenge(request.getSession().getId().getBytes());
+                return processCredentials(credentialRequest, request.getSession().getId().getBytes());
+        }
+
+        public CredentialRecord processCredentials(CredentialRequest credentialRequest, byte[] challengeBytes)  {
+
+                Challenge challenge = new DefaultChallenge(challengeBytes);
         Origin origin = new Origin(webAuthnConfiguration.getOriginUrl());
 
         String clientDataJSONStr = credentialRequest.getResponse().getClientDataJSON();

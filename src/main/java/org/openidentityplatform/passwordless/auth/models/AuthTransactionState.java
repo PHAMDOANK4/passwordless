@@ -17,4 +17,5 @@ public class AuthTransactionState {
     private int attempts;
     private String ipAddress;
     private String userAgent;
+    private String webauthnChallenge;
 }

@@ -360,26 +360,34 @@
     }
 
     try {
-      const challengeResponse = await fetch(`/webauthn/v1/register/challenge/${encodeURIComponent(username)}`, {
-        method: "GET",
+      const beginResponse = await api("/webauthn/v1/register/begin", {
+        method: "POST",
+        body: {
+          username,
+          authenticatorAttachment: "cross-platform",
+          residentKeyRequired: false,
+          userVerification: "preferred"
+        },
         credentials: "include"
       });
 
-      if (!challengeResponse.ok) {
-        throw new Error(`Failed to request registration challenge (${challengeResponse.status}).`);
+      if (!beginResponse?.transactionId || !beginResponse?.publicKey) {
+        throw new Error("Invalid registration challenge response.");
       }
 
-      const challengeBody = await challengeResponse.json();
-      const publicKey = normalizeCreationOptions(challengeBody);
+      const publicKey = normalizeCreationOptions(beginResponse.publicKey);
       const credential = await navigator.credentials.create({ publicKey });
 
-      const registerResult = await api("/webauthn/v1/register/credential", {
+      const registerResult = await api("/webauthn/v1/register/finish", {
         method: "POST",
-        body: serializeCredential(credential),
+        body: {
+          transactionId: beginResponse.transactionId,
+          credential: serializeCredential(credential)
+        },
         credentials: "include"
       });
 
-      writeStatus(els.mfaStatus, `Passkey registered. credentialId=${registerResult.credentialId}`, "ok");
+      writeStatus(els.mfaStatus, `USB security key registered. credentialId=${registerResult.credentialId}`, "ok");
       writeConsole("PASSKEY_REGISTER", registerResult);
     } catch (error) {
       writeStatus(els.mfaStatus, `Passkey registration failed: ${error.message}`, "error");

@@ -90,11 +90,11 @@ Notes:
 3. In "Login and Verification", start login using one method:
 - OTP
 - TOTP (if enrolled)
-- WebAuthn (if passkey enrolled)
+- WebAuthn USB key (if enrolled)
 4. Verify MFA to obtain access and refresh tokens.
 5. In "MFA Enrollment":
 - Generate TOTP QR and activate it with a valid code, or
-- Register passkey and activate passkey method.
+- Register USB security key and activate passkey method.
 6. In "OAuth2 User Authorization":
 - Send authorize request for a client
 - Receive authorization code
@@ -179,6 +179,40 @@ curl -X POST http://localhost:8080/oauth2/token \
 curl -X POST http://localhost:8080/token/refresh \
   -H "Content-Type: application/json" \
   -d '{ "refreshToken": "<REFRESH_TOKEN>" }'
+```
+
+### 6.7 Register a USB security key (WebAuthn begin/finish)
+
+Start registration ceremony:
+
+```bash
+curl -X POST http://localhost:8080/webauthn/v1/register/begin \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "alice@example.com",
+    "authenticatorAttachment": "cross-platform",
+    "residentKeyRequired": false,
+    "userVerification": "preferred"
+  }'
+```
+
+Use returned `transactionId` and `publicKey` in browser WebAuthn APIs, then finish:
+
+```bash
+curl -X POST http://localhost:8080/webauthn/v1/register/finish \
+  -H "Content-Type: application/json" \
+  -d '{
+    "transactionId": "<TX_ID>",
+    "credential": {
+      "id": "<CREDENTIAL_ID>",
+      "rawId": "<RAW_ID>",
+      "type": "public-key",
+      "response": {
+        "attestationObject": "<ATTESTATION_OBJECT>",
+        "clientDataJSON": "<CLIENT_DATA_JSON>"
+      }
+    }
+  }'
 ```
 
 ## 7. Admin Guide (Basic)
