@@ -43,6 +43,7 @@
         <guava.version>32.0.0-jre</guava.version>
         <hibernate-validator.version>8.0.0.Final</hibernate-validator.version>
         <bucket4j.version>8.0.1</bucket4j.version>
+        <jjwt.version>0.12.5</jjwt.version>
     </properties>
 
     <dependencies>
@@ -144,6 +145,25 @@
             <groupId>com.bucket4j</groupId>
             <artifactId>bucket4j-core</artifactId>
             <version>${bucket4j.version}</version>
+        </dependency>
+
+        <!--JWT-->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>${jjwt.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>${jjwt.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>${jjwt.version}</version>
+            <scope>runtime</scope>
         </dependency>
 
         <!--dev tools-->

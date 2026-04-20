@@ -18,11 +18,13 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -90,6 +92,23 @@ class TotpServiceTest {
         int totp = generator.generateOneTimePassword(key, Instant.now());
         boolean valid = totpService.verify(USERNAME, totp);
         assertTrue(valid);
+        assertNotNull(registeredTotp.getLastUsedStep());
+        verify(totpRepository, times(1)).save(registeredTotp);
+    }
+
+    @Test
+    void testVerify_replayPrevention() throws Exception {
+        long currentStep = Instant.now().getEpochSecond() / TotpService.TIME_STEP_SECONDS;
+        RegisteredTotp registeredTotp = new RegisteredTotp();
+        registeredTotp.setUsername(USERNAME);
+        registeredTotp.setSecret(SECRET);
+        registeredTotp.setLastUsedStep(currentStep);
+        when(totpRepository.findById(USERNAME)).thenReturn(Optional.of(registeredTotp));
+        Key key = totpService.restoreKey(SECRET);
+        int totp = generator.generateOneTimePassword(key, Instant.now());
+        boolean valid = totpService.verify(USERNAME, totp);
+        assertFalse(valid);
+        verify(totpRepository, never()).save(any(RegisteredTotp.class));
     }
 
     @Test

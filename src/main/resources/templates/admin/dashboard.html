@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{admin/layout :: head('Dashboard')}"></head>
+<body>
+    <nav th:replace="~{admin/layout :: sidebar('dashboard')}"></nav>
+    <div th:replace="~{admin/layout :: toasts}"></div>
+
+    <div class="main">
+        <div class="topbar">
+            <h1>Dashboard</h1>
+            <div class="topbar-actions">
+                <span style="font-size:13px;color:var(--text-light);" id="lastRefresh"></span>
+                <button class="btn btn-outline btn-sm" onclick="loadDashboard()">↻ Refresh</button>
+            </div>
+        </div>
+        <div class="content">
+            <!-- Stats -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon blue">🌐</div>
+                    <div class="stat-info">
+                        <h4 id="domainCount">-</h4>
+                        <p>Total Domains</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon green">👥</div>
+                    <div class="stat-info">
+                        <h4 id="userCount">-</h4>
+                        <p>Total Users</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon purple">📱</div>
+                    <div class="stat-info">
+                        <h4 id="appCount">-</h4>
+                        <p>Registered Apps</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon orange">📋</div>
+                    <div class="stat-info">
+                        <h4 id="auditCount">-</h4>
+                        <p>Audit Events (24h)</p>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                <!-- Recent Domains -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>🌐 Recent Domains</h3>
+                        <a href="/admin/domains" class="btn btn-outline btn-sm">View All →</a>
+                    </div>
+                    <div class="card-body" style="padding:0;">
+                        <div class="table-wrap">
+                            <table>
+                                <thead><tr><th>Domain</th><th>Status</th><th>Created</th></tr></thead>
+                                <tbody id="recentDomains">
+                                    <tr><td colspan="3" class="loading"><span class="spinner"></span>Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Apps -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>📱 Recent Apps</h3>
+                        <a href="/admin/apps" class="btn btn-outline btn-sm">View All →</a>
+                    </div>
+                    <div class="card-body" style="padding:0;">
+                        <div class="table-wrap">
+                            <table>
+                                <thead><tr><th>App Name</th><th>Status</th><th>Created</th></tr></thead>
+                                <tbody id="recentApps">
+                                    <tr><td colspan="3" class="loading"><span class="spinner"></span>Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Audit Logs -->
+            <div class="card" style="margin-top:24px;">
+                <div class="card-header">
+                    <h3>📋 Recent Activity</h3>
+                    <a href="/admin/audit" class="btn btn-outline btn-sm">View All →</a>
+                </div>
+                <div class="card-body" style="padding:0;">
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>Time</th><th>Event</th><th>Endpoint</th><th>IP</th><th>Status</th></tr></thead>
+                            <tbody id="recentAudit">
+                                <tr><td colspan="5" class="loading"><span class="spinner"></span>Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 3000);
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            const d = new Date(dateStr);
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+
+        function formatTime(dateStr) {
+            if (!dateStr) return '-';
+            const d = new Date(dateStr);
+            return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+
+        async function loadDashboard() {
+            try {
+                // Load domains
+                const domainsRes = await fetch('/api/domains');
+                const domains = domainsRes.ok ? await domainsRes.json() : [];
+                document.getElementById('domainCount').textContent = domains.length;
+
+                let totalUsers = 0;
+                domains.forEach(d => { totalUsers += (d.currentUsers || 0); });
+                document.getElementById('userCount').textContent = totalUsers;
+
+                // Recent domains table
+                const tbody = document.getElementById('recentDomains');
+                if (domains.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="3"><div class="empty-state"><div class="empty-icon">🌐</div><h4>No domains yet</h4><p>Create your first domain</p></div></td></tr>';
+                } else {
+                    tbody.innerHTML = domains.slice(0, 5).map(d => `
+                        <tr>
+                            <td><strong>${d.displayName || d.domainName}</strong><br><small style="color:var(--text-light)">${d.domainName}</small></td>
+                            <td><span class="badge ${d.active ? 'badge-success' : 'badge-danger'}">${d.active ? 'Active' : 'Inactive'}</span></td>
+                            <td style="color:var(--text-light);font-size:13px">${formatDate(d.createdAt)}</td>
+                        </tr>
+                    `).join('');
+                }
+
+                // Load apps
+                const appsRes = await fetch('/apps/v1/list');
+                const apps = appsRes.ok ? await appsRes.json() : [];
+                document.getElementById('appCount').textContent = apps.length;
+
+                const appsTbody = document.getElementById('recentApps');
+                if (apps.length === 0) {
+                    appsTbody.innerHTML = '<tr><td colspan="3"><div class="empty-state"><div class="empty-icon">📱</div><h4>No apps yet</h4><p>Register your first app</p></div></td></tr>';
+                } else {
+                    appsTbody.innerHTML = apps.slice(0, 5).map(a => `
+                        <tr>
+                            <td><strong>${a.name}</strong></td>
+                            <td><span class="badge ${a.active ? 'badge-success' : 'badge-danger'}">${a.active ? 'Active' : 'Inactive'}</span></td>
+                            <td style="color:var(--text-light);font-size:13px">${formatDate(a.createdAt)}</td>
+                        </tr>
+                    `).join('');
+                }
+
+                // Load audit logs
+                const auditRes = await fetch('/apps/v1/audit/logs?page=0&size=10&sortBy=createdAt&direction=DESC');
+                if (auditRes.ok) {
+                    const auditData = await auditRes.json();
+                    const logs = auditData.content || [];
+                    document.getElementById('auditCount').textContent = auditData.totalElements || 0;
+
+                    const auditTbody = document.getElementById('recentAudit');
+                    if (logs.length === 0) {
+                        auditTbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">📋</div><h4>No activity yet</h4></div></td></tr>';
+                    } else {
+                        auditTbody.innerHTML = logs.map(l => `
+                            <tr>
+                                <td style="font-size:13px;color:var(--text-light)">${formatTime(l.createdAt)}</td>
+                                <td><span class="badge badge-info">${l.eventType || '-'}</span></td>
+                                <td style="font-size:13px"><code>${l.endpoint || '-'}</code></td>
+                                <td style="font-size:13px">${l.ipAddress || '-'}</td>
+                                <td>${l.success ? '<span class="badge badge-success">OK</span>' : '<span class="badge badge-danger">Fail</span>'}</td>
+                            </tr>
+                        `).join('');
+                    }
+                } else {
+                    document.getElementById('auditCount').textContent = '0';
+                    document.getElementById('recentAudit').innerHTML = '<tr><td colspan="5"><div class="empty-state"><div class="empty-icon">📋</div><h4>No activity yet</h4></div></td></tr>';
+                }
+
+                document.getElementById('lastRefresh').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+            } catch (err) {
+                console.error('Dashboard load error:', err);
+                showToast('Failed to load dashboard data', 'error');
+            }
+        }
+
+        loadDashboard();
+    </script>
+</body>
+</html>

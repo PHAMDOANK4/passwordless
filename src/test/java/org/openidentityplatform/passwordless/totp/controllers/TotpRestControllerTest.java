@@ -2,10 +2,13 @@ package org.openidentityplatform.passwordless.totp.controllers;
 
 import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.Test;
+import org.openidentityplatform.passwordless.apps.security.ApiKeyAuthenticationFilter;
+import org.openidentityplatform.passwordless.configuration.JwtAuthenticationFilter;
 import org.openidentityplatform.passwordless.totp.services.QrService;
 import org.openidentityplatform.passwordless.totp.services.TotpService;
 import org.openidentityplatform.passwordless.totp.services.UserNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
@@ -24,6 +27,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(TotpRestController.class)
+@AutoConfigureMockMvc(addFilters = false)
 class TotpRestControllerTest {
 
     @Autowired
@@ -33,6 +37,10 @@ class TotpRestControllerTest {
     private TotpService totpService;
     @MockBean
     private QrService qrService;
+    @MockBean
+    private ApiKeyAuthenticationFilter apiKeyAuthenticationFilter;
+    @MockBean
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     final static String REGISTER_REQUEST_BODY = """
             {

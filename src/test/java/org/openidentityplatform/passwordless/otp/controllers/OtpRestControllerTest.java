@@ -27,12 +27,14 @@ import org.openidentityplatform.passwordless.otp.services.OtpVerifyAttemptsExcee
 import org.openidentityplatform.passwordless.otp.services.SenderNotFoundException;
 import org.openidentityplatform.passwordless.otp.services.SessionNotFoundException;
 import org.openidentityplatform.passwordless.otp.services.TemplateNotFoundException;
+import org.openidentityplatform.passwordless.apps.security.ApiKeyAuthenticationFilter;
+import org.openidentityplatform.passwordless.configuration.JwtAuthenticationFilter;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
-import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.result.MockMvcResultHandlers;
 
@@ -46,8 +48,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(SpringExtension.class)
-@WebAppConfiguration
 @WebMvcTest(OtpRestController.class)
+@AutoConfigureMockMvc(addFilters = false)
 public class OtpRestControllerTest {
 
     @Autowired
@@ -55,6 +57,12 @@ public class OtpRestControllerTest {
 
     @MockBean
     private OtpService otpService;
+
+    @MockBean
+    private ApiKeyAuthenticationFilter apiKeyAuthenticationFilter;
+
+    @MockBean
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     final static String sessionId = UUID.randomUUID().toString();
     final static String destination = "+7999999999";
