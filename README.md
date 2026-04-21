@@ -11,6 +11,7 @@ A centralized authentication service that provides passwordless authentication m
 - **[API Documentation](docs/API_DOCUMENTATION.md)** - Complete API reference with examples
 - **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment instructions
 - **[IdP Portal Guide](docs/IDP_PORTAL_GUIDE.md)** - End-user /idp flows and example payloads
+- **[OAuth2 Client Testing Guide](docs/OAUTH2_CLIENT_TESTING_GUIDE.md)** - End-to-end OAuth2 + PKCE testing steps
 - **[Quick Start](#quick-start)** - Get started in 5 minutes
 
 # Table of contents
