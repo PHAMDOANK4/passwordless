@@ -4,6 +4,7 @@ import org.openidentityplatform.passwordless.oauth2.models.AuthorizationCode;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
@@ -39,4 +40,11 @@ public interface AuthorizationCodeRepository extends JpaRepository<Authorization
      */
     @Query("SELECT COUNT(ac) FROM AuthorizationCode ac WHERE ac.user.id = :userId AND ac.used = false AND ac.expiresAt > :now")
     long countActiveCodesByUser(String userId, Instant now);
+
+    /**
+     * Delete all authorization codes belonging to a user.
+     */
+    @Modifying
+    @Query("DELETE FROM AuthorizationCode ac WHERE ac.user.id = :userId")
+    int deleteByUserId(@Param("userId") String userId);
 }

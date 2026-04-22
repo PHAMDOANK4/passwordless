@@ -23,7 +23,7 @@ public class QrService {
             BufferedImage bufferedImage = MatrixToImageWriter.toBufferedImage(bitMatrix);
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             ImageIO.write(bufferedImage, IMG_FORMAT, baos);
-            return "data:image/png;base64, ".concat(Base64.encodeBase64String(baos.toByteArray()));
+            return "data:image/png;base64,".concat(Base64.encodeBase64String(baos.toByteArray()));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

@@ -61,4 +61,26 @@ public interface UserRepository extends JpaRepository<User, String> {
      * Find user by external ID (for SSO)
      */
     Optional<User> findByExternalId(String externalId);
+
+    /**
+     * Admin: Search users by email or display name (case-insensitive)
+     */
+    @Query("SELECT u FROM User u WHERE LOWER(u.email) LIKE LOWER(CONCAT('%', :q, '%')) OR LOWER(u.displayName) LIKE LOWER(CONCAT('%', :q, '%'))")
+    Page<User> searchByEmailOrDisplayName(@Param("q") String q, Pageable pageable);
+
+    /**
+     * Admin: Filter users by status
+     */
+    Page<User> findByStatus(User.UserStatus status, Pageable pageable);
+
+    /**
+     * Admin: Count users by status
+     */
+    long countByStatus(User.UserStatus status);
+
+    /**
+     * Admin: Count users with MFA enabled
+     */
+    long countByMfaEnabledTrue();
 }
+

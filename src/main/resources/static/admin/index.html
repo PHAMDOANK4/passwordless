@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Passwordless Admin — Quản lý tài khoản</title>
+  <meta name="description" content="Giao diện quản trị tài khoản người dùng và các khóa xác thực không mật khẩu." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/admin.css" />
+</head>
+<body>
+
+<!-- =============== SIDEBAR =============== -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-icon">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4Z" fill="url(#brandGrad)" />
+        <path d="M9 12l2 2 4-4" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        <defs>
+          <linearGradient id="brandGrad" x1="3" y1="1" x2="21" y2="23" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#6366f1" />
+            <stop offset="1" stop-color="#8b5cf6" />
+          </linearGradient>
+        </defs>
+      </svg>
+    </div>
+    <div class="brand-text">
+      <span class="brand-name">Passwordless</span>
+      <span class="brand-sub">Admin Portal</span>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Tổng quan</div>
+    <a class="nav-item active" data-page="dashboard" href="#dashboard" id="nav-dashboard">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor">
+        <path d="M2 4a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2H4a2 2 0 01-2-2V4zm9 0a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2h-3a2 2 0 01-2-2V4zM2 13a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2H4a2 2 0 01-2-2v-3zm9 0a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2h-3a2 2 0 01-2-2v-3z"/>
+      </svg>
+      Dashboard
+    </a>
+
+    <div class="nav-section-label">Quản lý</div>
+    <a class="nav-item" data-page="users" href="#users" id="nav-users">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor">
+        <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
+      </svg>
+      Người dùng
+      <span class="nav-badge" id="badge-users">...</span>
+    </a>
+    <a class="nav-item" data-page="apps" href="#apps" id="nav-apps">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm2 10a1 1 0 10-2 0v3a1 1 0 102 0v-3zm2-3a1 1 0 011 1v5a1 1 0 11-2 0v-5a1 1 0 011-1zm4-1a1 1 0 10-2 0v7a1 1 0 102 0V8z" clip-rule="evenodd"/>
+      </svg>
+      Ứng dụng
+    </a>
+    <a class="nav-item" data-page="oauth-clients" href="#oauth-clients" id="nav-oauth-clients">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor">
+        <path d="M10 2a3 3 0 00-3 3v2H6a2 2 0 00-2 2v3a2 2 0 002 2h1v1a3 3 0 006 0v-1h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V5a3 3 0 00-3-3zm1 5H9V5a1 1 0 112 0v2z"/>
+      </svg>
+      OAuth2 Clients
+    </a>
+    <a class="nav-item" data-page="audit" href="#audit" id="nav-audit">
+      <svg class="nav-icon" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"/>
+      </svg>
+      Audit Logs
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="sidebar-footer-info">
+      <div class="footer-dot"></div>
+      <span>Service đang chạy</span>
+    </div>
+    <a href="/swagger-ui" target="_blank" class="sidebar-footer-link">Swagger UI →</a>
+  </div>
+</aside>
+
+<!-- =============== TOPBAR =============== -->
+<header class="topbar">
+  <button class="topbar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+    <svg viewBox="0 0 20 20" fill="currentColor">
+      <path fill-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"/>
+    </svg>
+  </button>
+
+  <div class="topbar-breadcrumb" id="breadcrumb">
+    <span>Dashboard</span>
+  </div>
+
+  <div class="topbar-right">
+    <div class="topbar-search" id="topbarSearchWrapper" style="display:none">
+      <svg class="search-icon" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+      </svg>
+      <input type="text" id="globalSearch" placeholder="Tìm kiếm người dùng..." />
+    </div>
+    <div class="topbar-avatar">
+      <span>A</span>
+    </div>
+  </div>
+</header>
+
+<!-- =============== MAIN =============== -->
+<main class="main-content" id="mainContent">
+  <!-- Pages are rendered here by JS -->
+  <div class="page-loading" id="pageLoading">
+    <div class="spinner"></div>
+    <p>Đang tải...</p>
+  </div>
+</main>
+
+<!-- =============== TOAST =============== -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- =============== MODAL =============== -->
+<div class="modal-overlay" id="modalOverlay" style="display:none">
+  <div class="modal-box" id="modalBox">
+    <div class="modal-header">
+      <h3 class="modal-title" id="modalTitle">Xác nhận</h3>
+      <button class="modal-close" id="modalClose">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="modalCancel">Hủy</button>
+      <button class="btn btn-danger" id="modalConfirm">Xác nhận</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

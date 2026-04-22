@@ -16,6 +16,8 @@ import java.util.stream.Collectors;
 public class UserAuthenticatorRDBMSRepository implements UserAuthenticatorRepository {
 
     private final UserAuthenticatorJPARepository userAuthenticatorJPARepository;
+    private final org.openidentityplatform.passwordless.iam.repositories.UserRepository userRepository;
+    private final org.openidentityplatform.passwordless.iam.repositories.DomainRepository domainRepository;
     
     @Override
     public void save(String username, CredentialRecord credentialRecord) {
@@ -24,6 +26,30 @@ public class UserAuthenticatorRDBMSRepository implements UserAuthenticatorReposi
         WebAuthnAuthenticatorEntity webAuthnAuthenticatorEntity = new WebAuthnAuthenticatorEntity();
         webAuthnAuthenticatorEntity.setUsername(username);
         webAuthnAuthenticatorEntity.setAuthenticator(authenticatorEntity.toJson());
+        
+        // --- JIT PROVISIONING TO SUPPORT IAM ADMIN DASHBOARD ---
+        // Create default domain if not exists
+        org.openidentityplatform.passwordless.iam.models.Domain defaultDomain = domainRepository.findByDomainName("default.com")
+                .orElseGet(() -> {
+                    org.openidentityplatform.passwordless.iam.models.Domain d = new org.openidentityplatform.passwordless.iam.models.Domain();
+                    d.setDomainName("default.com");
+                    d.setDisplayName("Default Domain");
+                    d.setOwnerEmail("admin@default.com");
+                    return domainRepository.save(d);
+                });
+                
+        // Auto-create IAM User if not exists
+        org.openidentityplatform.passwordless.iam.models.User iamUser = userRepository.findByEmail(username)
+                .orElseGet(() -> {
+                    org.openidentityplatform.passwordless.iam.models.User u = new org.openidentityplatform.passwordless.iam.models.User();
+                    u.setEmail(username);
+                    u.setDomain(defaultDomain);
+                    u.setDisplayName(username);
+                    u.setRole(org.openidentityplatform.passwordless.iam.models.User.UserRole.USER);
+                    return userRepository.save(u);
+                });
+        webAuthnAuthenticatorEntity.setUser(iamUser);
+        // -------------------------------------------------------
         
         // Extract credential ID from the credential record
         if (credentialRecord.getAttestedCredentialData() != null) {

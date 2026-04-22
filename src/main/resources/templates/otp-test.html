@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Email OTP Test UI</title>
+    <style>
+        :root {
+            --bg-a: #f7f3e8;
+            --bg-b: #d7e4f4;
+            --ink: #1f2937;
+            --muted: #586174;
+            --card: #ffffff;
+            --line: #d5dce7;
+            --brand: #0f766e;
+            --brand-2: #0b5fd8;
+            --danger: #b42318;
+            --ok: #027a48;
+            --shadow: 0 18px 45px rgba(18, 31, 53, 0.18);
+            --radius: 16px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "Avenir Next", "Montserrat", "Segoe UI", sans-serif;
+            color: var(--ink);
+            background:
+                radial-gradient(1200px 420px at 10% -10%, rgba(15, 118, 110, 0.25), transparent 60%),
+                radial-gradient(900px 420px at 100% 0%, rgba(11, 95, 216, 0.2), transparent 60%),
+                linear-gradient(135deg, var(--bg-a), var(--bg-b));
+            display: grid;
+            place-items: center;
+            padding: 24px;
+        }
+
+        .shell {
+            width: min(860px, 100%);
+            background: var(--card);
+            border: 1px solid rgba(255, 255, 255, 0.85);
+            border-radius: calc(var(--radius) + 4px);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            animation: rise 360ms ease-out;
+        }
+
+        .top {
+            padding: 26px 28px 20px;
+            color: #f8fafc;
+            background: linear-gradient(112deg, #0f766e 0%, #0b5fd8 92%);
+        }
+
+        .kicker {
+            margin: 0;
+            opacity: 0.85;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        h1 {
+            margin: 8px 0 8px;
+            font-size: clamp(24px, 4vw, 34px);
+            line-height: 1.2;
+            letter-spacing: -0.02em;
+        }
+
+        .top p {
+            margin: 0;
+            opacity: 0.95;
+            max-width: 72ch;
+            line-height: 1.5;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 18px;
+            padding: 22px;
+        }
+
+        @media (min-width: 820px) {
+            .grid {
+                grid-template-columns: 1.15fr 1fr;
+            }
+        }
+
+        .panel {
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            background: #fbfdff;
+            padding: 18px;
+        }
+
+        .panel h2 {
+            margin: 0 0 12px;
+            font-size: 18px;
+            letter-spacing: -0.01em;
+        }
+
+        .field {
+            margin-bottom: 12px;
+        }
+
+        .field label {
+            display: block;
+            margin-bottom: 6px;
+            color: #344054;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .field input {
+            width: 100%;
+            border: 1px solid #cdd7e5;
+            border-radius: 10px;
+            padding: 11px 12px;
+            font-size: 15px;
+            color: #111827;
+            background: #ffffff;
+            transition: border-color 180ms ease, box-shadow 180ms ease;
+        }
+
+        .field input:focus {
+            outline: none;
+            border-color: #0f766e;
+            box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.12);
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 10px;
+            padding: 11px 16px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            color: white;
+            transition: transform 150ms ease, filter 150ms ease;
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            filter: brightness(1.05);
+        }
+
+        .btn:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-send {
+            background: linear-gradient(120deg, #0f766e, #14b8a6);
+        }
+
+        .btn-verify {
+            background: linear-gradient(120deg, #0b5fd8, #3b82f6);
+        }
+
+        .hint {
+            margin-top: 12px;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .response {
+            min-height: 240px;
+            max-height: 360px;
+            overflow: auto;
+            background: #0b1220;
+            color: #d2e3ff;
+            border-radius: 12px;
+            border: 1px solid #1f2937;
+            padding: 12px;
+            font-family: "IBM Plex Mono", "Fira Code", Consolas, monospace;
+            font-size: 13px;
+            line-height: 1.4;
+            white-space: pre-wrap;
+        }
+
+        .status {
+            margin-top: 12px;
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 14px;
+            font-weight: 600;
+            display: none;
+        }
+
+        .status.ok {
+            display: block;
+            color: var(--ok);
+            background: #e7f8ef;
+            border: 1px solid #b7ebce;
+        }
+
+        .status.err {
+            display: block;
+            color: var(--danger);
+            background: #fdecec;
+            border: 1px solid #f7c1c1;
+        }
+
+        @keyframes rise {
+            from {
+                transform: translateY(8px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+<main class="shell">
+    <header class="top">
+        <p class="kicker">Passwordless OTP</p>
+        <h1>Email OTP Testing Console</h1>
+        <p>Use this page to send a one-time password to an email address and verify it immediately. API key is required for all OTP API calls.</p>
+    </header>
+
+    <section class="grid">
+        <section class="panel">
+            <h2>Send OTP</h2>
+
+            <div class="field">
+                <label for="apiKey">X-API-Key</label>
+                <input id="apiKey" type="text" autocomplete="off" placeholder="pk_xxxxxxxxxxxxx"/>
+            </div>
+
+            <div class="field">
+                <label for="sender">Sender</label>
+                <input id="sender" type="text" autocomplete="off" value="emailOtp" placeholder="emailOtp"/>
+            </div>
+
+            <div class="field">
+                <label for="destination">Destination Email</label>
+                <input id="destination" type="email" autocomplete="email" placeholder="user@example.com"/>
+            </div>
+
+            <div class="actions">
+                <button id="sendBtn" class="btn btn-send" type="button">Send OTP Email</button>
+            </div>
+
+            <h2 style="margin-top: 18px;">Verify OTP</h2>
+
+            <div class="field">
+                <label for="otp">OTP Code</label>
+                <input id="otp" type="text" inputmode="numeric" maxlength="6" placeholder="Enter 6-digit OTP from email"/>
+            </div>
+
+            <div class="actions">
+                <button id="verifyBtn" class="btn btn-verify" type="button">Verify OTP</button>
+            </div>
+
+            <p class="hint">Use sender <strong>emailOtp</strong>. Verification uses <strong>destination + 6-digit otp</strong> mode. Session ID support remains available in backend for legacy clients.</p>
+            <div id="status" class="status"></div>
+        </section>
+
+        <section class="panel">
+            <h2>API Response Log</h2>
+            <pre id="response" class="response">Ready. Fill the fields and click "Send OTP Email".</pre>
+        </section>
+    </section>
+</main>
+
+<script>
+    const apiBase = '/otp/v1';
+
+    const apiKeyEl = document.getElementById('apiKey');
+    const senderEl = document.getElementById('sender');
+    const destinationEl = document.getElementById('destination');
+    const otpEl = document.getElementById('otp');
+    const sendBtnEl = document.getElementById('sendBtn');
+    const verifyBtnEl = document.getElementById('verifyBtn');
+    const responseEl = document.getElementById('response');
+    const statusEl = document.getElementById('status');
+
+    function setLoading(loading) {
+        sendBtnEl.disabled = loading;
+        verifyBtnEl.disabled = loading;
+    }
+
+    function showStatus(message, isError) {
+        statusEl.textContent = message;
+        statusEl.className = isError ? 'status err' : 'status ok';
+    }
+
+    function pretty(data) {
+        if (typeof data === 'string') {
+            return data;
+        }
+        return JSON.stringify(data, null, 2);
+    }
+
+    function logResult(title, payload) {
+        const ts = new Date().toLocaleTimeString();
+        responseEl.textContent = `[${ts}] ${title}\n${pretty(payload)}`;
+    }
+
+    async function parseResponse(res) {
+        const contentType = (res.headers.get('content-type') || '').toLowerCase();
+        if (contentType.includes('application/json')) {
+            return await res.json();
+        }
+        const text = await res.text();
+        return text || `HTTP ${res.status}`;
+    }
+
+    async function sendOtp() {
+        const apiKey = apiKeyEl.value.trim();
+        const sender = senderEl.value.trim();
+        const destination = destinationEl.value.trim();
+
+        if (!apiKey || !sender || !destination) {
+            showStatus('API key, sender and destination are required.', true);
+            return;
+        }
+
+        try {
+            setLoading(true);
+            const res = await fetch(`${apiBase}/register`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-API-Key': apiKey
+                },
+                body: JSON.stringify({ sender, destination })
+            });
+
+            const data = await parseResponse(res);
+            logResult('POST /otp/v1/register', data);
+
+            if (!res.ok) {
+                throw new Error(data.error || pretty(data));
+            }
+
+            localStorage.setItem('otpTestApiKey', apiKey);
+            localStorage.setItem('otpTestSender', sender);
+            localStorage.setItem('otpTestDestination', destination);
+            showStatus('OTP sent successfully. Check email and enter the code below.', false);
+            otpEl.focus();
+        } catch (error) {
+            showStatus(`Send failed: ${error.message}`, true);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    async function verifyOtp() {
+        const apiKey = apiKeyEl.value.trim();
+        const destination = destinationEl.value.trim();
+        const otp = otpEl.value.trim();
+
+        if (!apiKey || !destination || !otp) {
+            showStatus('API key, destination and OTP are required.', true);
+            return;
+        }
+        if (!/^\d{6}$/.test(otp)) {
+            showStatus('OTP must be exactly 6 digits.', true);
+            return;
+        }
+
+        try {
+            setLoading(true);
+            const res = await fetch(`${apiBase}/verify`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-API-Key': apiKey
+                },
+                body: JSON.stringify({ destination, otp })
+            });
+
+            const data = await parseResponse(res);
+            logResult('POST /otp/v1/verify', data);
+
+            if (!res.ok) {
+                throw new Error(data.error || pretty(data));
+            }
+
+            if (data.valid) {
+                showStatus('OTP verification success: valid = true', false);
+            } else {
+                showStatus('OTP verification failed: valid = false', true);
+            }
+        } catch (error) {
+            showStatus(`Verify failed: ${error.message}`, true);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    otpEl.addEventListener('input', (event) => {
+        event.target.value = event.target.value.replace(/\D/g, '').slice(0, 6);
+    });
+
+    otpEl.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            verifyOtp();
+        }
+    });
+
+    sendBtnEl.addEventListener('click', sendOtp);
+    verifyBtnEl.addEventListener('click', verifyOtp);
+
+    const savedApiKey = localStorage.getItem('otpTestApiKey');
+    const savedSender = localStorage.getItem('otpTestSender');
+    const savedDestination = localStorage.getItem('otpTestDestination');
+    if (savedApiKey) {
+        apiKeyEl.value = savedApiKey;
+    }
+    if (savedSender) {
+        senderEl.value = savedSender;
+    }
+    if (savedDestination) {
+        destinationEl.value = savedDestination;
+    }
+</script>
+</body>
+</html>

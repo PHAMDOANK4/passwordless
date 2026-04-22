@@ -9,4 +9,10 @@ public interface UserAuthenticatorJPARepository extends JpaRepository<WebAuthnAu
     List<WebAuthnAuthenticatorEntity> getAllByUsername(String username);
     Optional<WebAuthnAuthenticatorEntity> findByCredentialId(String credentialId);
     Optional<WebAuthnAuthenticatorEntity> findByUsernameAndCredentialId(String username, String credentialId);
+
+    // Admin queries
+    List<WebAuthnAuthenticatorEntity> findByUserIdOrderByCreatedAtDesc(String userId);
+    long countByUserId(String userId);
+    long deleteByUserId(String userId);
 }
+

@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AuthCentralA IdP Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f6f3ec;
+      --ink: #1f2a37;
+      --muted: #5d6775;
+      --card: rgba(255, 255, 255, 0.78);
+      --line: rgba(31, 42, 55, 0.16);
+      --gold: #c07a22;
+      --teal: #197d73;
+      --danger: #b23c2a;
+      --ok: #1d8a4d;
+      --mono: "IBM Plex Mono", monospace;
+      --sans: "Space Grotesk", sans-serif;
+      --shadow: 0 24px 40px rgba(31, 42, 55, 0.12);
+      --radius: 18px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(80rem 36rem at -8% -12%, rgba(192, 122, 34, 0.17), transparent 64%),
+        radial-gradient(46rem 28rem at 108% 4%, rgba(25, 125, 115, 0.13), transparent 60%),
+        linear-gradient(160deg, #f5efe3 0%, #f7f6f1 62%, #ecefe8 100%);
+      color: var(--ink);
+      font-family: var(--sans);
+      padding: 20px;
+    }
+
+    .noise {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.22;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cg fill='%231f2a37' fill-opacity='0.06'%3E%3Ccircle cx='6' cy='7' r='1'/%3E%3Ccircle cx='40' cy='17' r='1'/%3E%3Ccircle cx='88' cy='23' r='1'/%3E%3Ccircle cx='26' cy='58' r='1'/%3E%3Ccircle cx='72' cy='64' r='1'/%3E%3Ccircle cx='111' cy='88' r='1'/%3E%3C/g%3E%3C/svg%3E");
+    }
+
+    .shell {
+      position: relative;
+      z-index: 1;
+      max-width: 1380px;
+      margin: 0 auto;
+      display: grid;
+      gap: 18px;
+    }
+
+    .hero {
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(248, 245, 239, 0.82) 100%);
+      backdrop-filter: blur(8px);
+      padding: 22px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+      flex-wrap: wrap;
+      animation: enter 0.5s ease;
+    }
+
+    .hero h1 {
+      margin: 0;
+      letter-spacing: 0.3px;
+      font-size: clamp(1.5rem, 3.5vw, 2.4rem);
+    }
+
+    .hero p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      max-width: 760px;
+    }
+
+    .token-strip {
+      display: grid;
+      gap: 6px;
+      min-width: 220px;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .token-pill {
+      border-radius: 999px;
+      padding: 6px 11px;
+      background: rgba(25, 125, 115, 0.12);
+      color: #0d5a52;
+      border: 1px solid rgba(25, 125, 115, 0.24);
+      text-align: center;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(290px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--card);
+      box-shadow: var(--shadow);
+      padding: 16px;
+      backdrop-filter: blur(8px);
+      animation: rise 0.45s ease both;
+    }
+
+    .card h2 {
+      margin: 0 0 6px;
+      font-size: 1.12rem;
+    }
+
+    .card .hint {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .form {
+      display: grid;
+      gap: 10px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(110px, 1fr));
+      gap: 10px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-size: 0.8rem;
+      letter-spacing: 0.2px;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      border-radius: 11px;
+      border: 1px solid rgba(31, 42, 55, 0.18);
+      padding: 10px 11px;
+      font: 500 0.91rem var(--sans);
+      color: var(--ink);
+      background: rgba(255, 255, 255, 0.87);
+      outline: none;
+      transition: box-shadow 120ms ease, border-color 120ms ease;
+    }
+
+    textarea {
+      min-height: 86px;
+      resize: vertical;
+      font-family: var(--mono);
+      font-size: 0.8rem;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: rgba(25, 125, 115, 0.55);
+      box-shadow: 0 0 0 3px rgba(25, 125, 115, 0.15);
+    }
+
+    .actions {
+      display: flex;
+      gap: 9px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: 1px solid transparent;
+      border-radius: 11px;
+      padding: 9px 12px;
+      font: 600 0.87rem var(--sans);
+      cursor: pointer;
+      transition: transform 130ms ease, box-shadow 130ms ease, opacity 130ms ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+      transform: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #1b8f83 0%, #176c63 100%);
+      color: white;
+      box-shadow: 0 8px 16px rgba(25, 125, 115, 0.28);
+    }
+
+    .btn-alt {
+      background: linear-gradient(135deg, #cc8b38 0%, #a4651c 100%);
+      color: white;
+      box-shadow: 0 8px 16px rgba(175, 108, 27, 0.25);
+    }
+
+    .btn-soft {
+      background: rgba(31, 42, 55, 0.08);
+      border-color: rgba(31, 42, 55, 0.15);
+      color: #243241;
+    }
+
+    .btn-danger {
+      background: rgba(178, 60, 42, 0.12);
+      border-color: rgba(178, 60, 42, 0.35);
+      color: #8f2e20;
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .mono {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      word-break: break-word;
+      color: #2d3948;
+    }
+
+    .status {
+      border: 1px dashed rgba(31, 42, 55, 0.22);
+      border-radius: 12px;
+      padding: 10px 11px;
+      background: rgba(255, 255, 255, 0.5);
+      color: #2b3644;
+      font-size: 0.87rem;
+      min-height: 48px;
+    }
+
+    .status.ok {
+      border-color: rgba(29, 138, 77, 0.35);
+      background: rgba(29, 138, 77, 0.08);
+      color: #12613a;
+    }
+
+    .status.error {
+      border-color: rgba(178, 60, 42, 0.35);
+      background: rgba(178, 60, 42, 0.08);
+      color: #7e2a1d;
+    }
+
+    .qr-box {
+      border: 1px solid rgba(31, 42, 55, 0.16);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.9);
+      display: grid;
+      place-items: center;
+      min-height: 320px;
+      padding: 12px;
+      overflow: hidden;
+    }
+
+    .qr-box img {
+      width: min(100%, 300px);
+      max-width: 300px;
+      height: auto;
+      object-fit: contain;
+    }
+
+    .table-wrap {
+      max-height: 250px;
+      overflow: auto;
+      border: 1px solid rgba(31, 42, 55, 0.16);
+      border-radius: 11px;
+      background: rgba(255, 255, 255, 0.75);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+
+    th,
+    td {
+      padding: 8px 9px;
+      border-bottom: 1px solid rgba(31, 42, 55, 0.12);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      position: sticky;
+      top: 0;
+      background: #f4f3ed;
+    }
+
+    .span-2 {
+      grid-column: span 2;
+    }
+
+    .code {
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      white-space: pre-wrap;
+      margin: 0;
+      max-height: 240px;
+      overflow: auto;
+      border-radius: 11px;
+      border: 1px solid rgba(31, 42, 55, 0.16);
+      background: rgba(255, 255, 255, 0.86);
+      padding: 10px;
+    }
+
+    @keyframes rise {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes enter {
+      from {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (max-width: 1080px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .span-2 {
+        grid-column: span 1;
+      }
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 12px;
+      }
+
+      .hero,
+      .card {
+        padding: 13px;
+      }
+
+      .row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="noise"></div>
+  <div class="shell">
+    <section class="hero">
+      <div>
+        <h1>AuthCentralA IdP Studio</h1>
+        <p>Complete user lifecycle: self-registration, passwordless authentication (OTP, TOTP, passkeys), OAuth2 authorization code flow, and active-session control.</p>
+      </div>
+      <div class="token-strip">
+        <div class="token-pill" id="authStatePill">Not authenticated</div>
+        <div id="authSummary" class="mono">No active token loaded.</div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>1) User Registration</h2>
+        <p class="hint">Create an IdP user account directly from the portal.</p>
+        <form id="registerForm" class="form">
+          <div class="row">
+            <div>
+              <label for="registerEmail">Email</label>
+              <input id="registerEmail" type="email" required placeholder="alice@example.com" />
+            </div>
+            <div>
+              <label for="registerPhone">Phone (optional)</label>
+              <input id="registerPhone" type="text" placeholder="+12025550123" />
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label for="registerFirstName">First Name</label>
+              <input id="registerFirstName" type="text" required placeholder="Alice" />
+            </div>
+            <div>
+              <label for="registerLastName">Last Name</label>
+              <input id="registerLastName" type="text" required placeholder="Nguyen" />
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label for="registerPreferredMethod">Preferred Method (optional)</label>
+              <select id="registerPreferredMethod">
+                <option value="">None</option>
+                <option value="OTP">Email OTP</option>
+                <option value="TOTP">TOTP</option>
+                <option value="WEBAUTHN">WebAuthn</option>
+              </select>
+            </div>
+            <div>
+              <label for="registerMfaEnabled">MFA Enabled</label>
+              <select id="registerMfaEnabled">
+                <option value="false">false</option>
+                <option value="true">true</option>
+              </select>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn-primary" type="submit">Create User</button>
+            <button class="btn-soft" type="button" id="useRegisterEmailBtn">Use For Login</button>
+          </div>
+        </form>
+        <div class="status" id="registerStatus">Waiting for registration request.</div>
+      </article>
+
+      <article class="card">
+        <h2>2) Login And Verification</h2>
+        <p class="hint">Start login and complete MFA verification for OTP, TOTP, or WebAuthn.</p>
+        <form id="loginForm" class="form">
+          <div class="row">
+            <div>
+              <label for="loginIdentifier">Identifier (email)</label>
+              <input id="loginIdentifier" type="email" required placeholder="alice@example.com" />
+            </div>
+            <div>
+              <label for="loginMethod">Preferred Method</label>
+              <select id="loginMethod">
+                <option value="">Auto</option>
+                <option value="OTP">OTP</option>
+                <option value="TOTP">TOTP</option>
+                <option value="WEBAUTHN">WebAuthn</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label for="loginClientId">Client ID</label>
+            <input id="loginClientId" type="text" value="passwordless-web" />
+          </div>
+          <div class="actions">
+            <button class="btn-primary" type="submit">Start Login</button>
+            <button class="btn-soft" type="button" id="verifyWebAuthnBtn">Verify WebAuthn Now</button>
+          </div>
+        </form>
+
+        <div class="split">
+          <div class="row">
+            <div>
+              <label for="verifyOtp">OTP</label>
+              <input id="verifyOtp" type="text" placeholder="123456" />
+            </div>
+            <div>
+              <label for="verifyTotp">TOTP</label>
+              <input id="verifyTotp" type="number" placeholder="123456" />
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn-alt" type="button" id="verifyOtpBtn">Verify OTP</button>
+            <button class="btn-alt" type="button" id="verifyTotpBtn">Verify TOTP</button>
+            <button class="btn-soft" type="button" id="refreshMeBtn">Refresh Profile</button>
+          </div>
+        </div>
+        <div class="status" id="loginStatus">No auth transaction started.</div>
+      </article>
+
+      <article class="card">
+        <h2>3) MFA Enrollment</h2>
+        <p class="hint">Enroll and activate TOTP or passkeys for the authenticated user.</p>
+        <div class="form">
+          <div class="actions">
+            <button class="btn-primary" type="button" id="startTotpEnrollmentBtn">Generate TOTP Enrollment</button>
+            <button class="btn-soft" type="button" id="activateEmailOtpBtn">Set Email OTP As Preferred</button>
+          </div>
+          <div class="row">
+            <div>
+              <label for="activateTotpCode">Activate TOTP Code</label>
+              <input id="activateTotpCode" type="number" placeholder="123456" />
+            </div>
+            <div style="display:flex;align-items:end">
+              <button class="btn-alt" type="button" id="activateTotpBtn" style="width:100%">Activate TOTP</button>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn-primary" type="button" id="registerPasskeyBtn">Register USB Security Key</button>
+            <button class="btn-alt" type="button" id="activatePasskeyBtn">Set Passkey As Preferred</button>
+          </div>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <div class="qr-box" id="totpQrBox">
+            <span class="mono" style="opacity:0.7">TOTP QR appears here</span>
+          </div>
+          <div class="status" id="mfaStatus">No MFA enrollment action yet.</div>
+        </div>
+      </article>
+
+      <article class="card span-2">
+        <h2>4) OAuth2 User Authorization</h2>
+        <p class="hint">Approve an OAuth2 authorization request and exchange authorization code for tokens.</p>
+        <form id="authorizeForm" class="form">
+          <div class="row">
+            <div>
+              <label for="authorizeClientId">client_id</label>
+              <input id="authorizeClientId" type="text" placeholder="web-app-prod" required />
+            </div>
+            <div>
+              <label for="authorizeRedirectUri">redirect_uri</label>
+              <input id="authorizeRedirectUri" type="url" placeholder="https://client.example.com/callback" required />
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label for="authorizeScope">scope</label>
+              <input id="authorizeScope" type="text" value="openid profile email" />
+            </div>
+            <div>
+              <label for="authorizeState">state</label>
+              <input id="authorizeState" type="text" value="state-123" />
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label for="authorizeCodeChallenge">code_challenge</label>
+              <input id="authorizeCodeChallenge" type="text" />
+            </div>
+            <div>
+              <label for="authorizeCodeChallengeMethod">code_challenge_method</label>
+              <select id="authorizeCodeChallengeMethod">
+                <option value="S256" selected>S256</option>
+                <option value="plain">plain</option>
+              </select>
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label for="authorizeNonce">nonce</label>
+              <input id="authorizeNonce" type="text" value="nonce-123" />
+            </div>
+            <div>
+              <label for="pkceVerifier">PKCE code_verifier</label>
+              <input id="pkceVerifier" type="text" />
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn-soft" type="button" id="generatePkceBtn">Generate PKCE Pair</button>
+            <button class="btn-primary" type="submit">Authorize User</button>
+          </div>
+        </form>
+
+        <div class="status" id="authorizeStatus">Authorization request has not been sent yet.</div>
+
+        <div class="row" style="margin-top:10px">
+          <div>
+            <label for="tokenCode">Authorization Code</label>
+            <input id="tokenCode" type="text" placeholder="Paste code from authorize response" />
+          </div>
+          <div>
+            <label for="tokenClientSecret">client_secret (optional for PKCE public clients)</label>
+            <input id="tokenClientSecret" type="text" />
+          </div>
+        </div>
+        <div class="actions" style="margin-top:8px">
+          <button class="btn-alt" type="button" id="exchangeTokenBtn">Exchange Code For Tokens</button>
+          <button class="btn-soft" type="button" id="refreshTokenBtn">Refresh Tokens</button>
+          <button class="btn-soft" type="button" id="loadUserInfoBtn">Load UserInfo</button>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>5) Session Control</h2>
+        <p class="hint">View all active sessions for the signed-in user and revoke as needed.</p>
+        <div class="actions">
+          <button class="btn-primary" type="button" id="loadSessionsBtn">Load Sessions</button>
+          <button class="btn-danger" type="button" id="revokeAllSessionsBtn">Revoke All Sessions</button>
+        </div>
+        <div class="table-wrap" style="margin-top:10px">
+          <table>
+            <thead>
+              <tr>
+                <th>Session ID</th>
+                <th>Auth Method</th>
+                <th>IP</th>
+                <th>Last Activity</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="sessionsBody">
+              <tr><td colspan="5" class="mono">No session data loaded.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>6) API Console</h2>
+        <p class="hint">Live output from register/auth/authorize/token/userinfo/session actions.</p>
+        <pre id="consoleOutput" class="code">{ "status": "ready" }</pre>
+      </article>
+    </section>
+  </div>
+
+  <script src="/idp/js/app.js"></script>
+</body>
+</html>

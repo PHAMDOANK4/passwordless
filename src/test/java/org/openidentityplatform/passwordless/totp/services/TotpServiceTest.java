@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Test;
 import org.openidentityplatform.passwordless.totp.configuration.TotpConfiguration;
 import org.openidentityplatform.passwordless.totp.models.RegisteredTotp;
 import org.openidentityplatform.passwordless.totp.repository.RegisteredTotpRepository;
+import org.openidentityplatform.passwordless.iam.repositories.DomainRepository;
+import org.openidentityplatform.passwordless.iam.repositories.UserRepository;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -46,12 +48,14 @@ class TotpServiceTest {
         totpConfiguration.setIssuer("acme.com");
         totpConfiguration.setIssuerLabel("Acme LLC");
         totpRepository = mock(RegisteredTotpRepository.class);
-        totpService = new TotpService(totpRepository, generator, totpConfiguration);
+        UserRepository userRepository = mock(UserRepository.class);
+        DomainRepository domainRepository = mock(DomainRepository.class);
+        totpService = new TotpService(totpRepository, userRepository, domainRepository, generator, totpConfiguration);
     }
 
     @Test
     void testRegister() {
-        when(totpRepository.findById(USERNAME)).thenReturn(Optional.empty());
+        when(totpRepository.findByUsername(USERNAME)).thenReturn(Optional.empty());
         URI uri = totpService.register(USERNAME);
         assertEquals("otpauth", uri.getScheme());
         assertEquals("totp", uri.getHost());
@@ -63,20 +67,18 @@ class TotpServiceTest {
 
     @Test
     void testRegister_userExists() {
-        when(totpRepository.existsById(USERNAME)).thenReturn(true);
-
         RegisteredTotp registeredTotp = new RegisteredTotp();
         registeredTotp.setUsername(USERNAME);
         registeredTotp.setSecret(SECRET);
 
-        when(totpRepository.findById(USERNAME)).thenReturn(Optional.of(registeredTotp));
+        when(totpRepository.findByUsername(USERNAME)).thenReturn(Optional.of(registeredTotp));
         URI uri = totpService.register(USERNAME);
         assertEquals("otpauth", uri.getScheme());
         assertEquals("totp", uri.getHost());
         List<NameValuePair> params = URLEncodedUtils.parse(uri, StandardCharsets.UTF_8);
         assertTrue(params.stream().anyMatch(p -> p.getName().equals("secret")));
         assertTrue(params.stream().anyMatch(p -> p.getName().equals("issuer")));
-        verify(totpRepository, times(1)).findById(eq(USERNAME));
+        verify(totpRepository, times(1)).findByUsername(eq(USERNAME));
         verify(totpRepository, times(1)).save(any(RegisteredTotp.class));
     }
 
@@ -85,7 +87,7 @@ class TotpServiceTest {
         RegisteredTotp registeredTotp = new RegisteredTotp();
         registeredTotp.setUsername(USERNAME);
         registeredTotp.setSecret(SECRET);
-        when(totpRepository.findById(USERNAME)).thenReturn(Optional.of(registeredTotp));
+        when(totpRepository.findByUsername(USERNAME)).thenReturn(Optional.of(registeredTotp));
         Key key = totpService.restoreKey(SECRET);
         int totp = generator.generateOneTimePassword(key, Instant.now());
         boolean valid = totpService.verify(USERNAME, totp);
@@ -97,14 +99,14 @@ class TotpServiceTest {
         RegisteredTotp registeredTotp = new RegisteredTotp();
         registeredTotp.setUsername(USERNAME);
         registeredTotp.setSecret(SECRET);
-        when(totpRepository.findById(USERNAME)).thenReturn(Optional.of(registeredTotp));
+        when(totpRepository.findByUsername(USERNAME)).thenReturn(Optional.of(registeredTotp));
         boolean valid = totpService.verify(USERNAME, 1);
         assertFalse(valid);
     }
 
     @Test
     void testVerify_userNotFound() {
-        when(totpRepository.findById(USERNAME)).thenReturn(Optional.empty());
+        when(totpRepository.findByUsername(USERNAME)).thenReturn(Optional.empty());
         assertThrows(UserNotFoundException.class, () -> totpService.verify(USERNAME, 1));
     }
 }

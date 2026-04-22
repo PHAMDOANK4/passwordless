@@ -16,7 +16,8 @@
 
 package org.openidentityplatform.passwordless.apps.security;
 
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -28,10 +29,10 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @EnableWebSecurity
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class SecurityConfiguration {
     
-    private final ApiKeyAuthenticationFilter apiKeyAuthenticationFilter;
+    private final ObjectProvider<ApiKeyAuthenticationFilter> apiKeyAuthenticationFilterProvider;
     
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -46,12 +47,20 @@ public class SecurityConfiguration {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/apps/v1/**").permitAll()
+                .requestMatchers("/admin/**", "/admin/api/**").permitAll()
+                .requestMatchers("/auth/**").permitAll()
+                .requestMatchers("/token/**").permitAll()
+                .requestMatchers("/oauth2/**").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/webauthn/test", "/webauthn/test/**", "/webauthn/v1/**", "/js/**").permitAll()
                 .anyRequest().permitAll()
-            )
-            .addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            );
+
+        ApiKeyAuthenticationFilter apiKeyAuthenticationFilter = apiKeyAuthenticationFilterProvider.getIfAvailable();
+        if (apiKeyAuthenticationFilter != null) {
+            http.addFilterBefore(apiKeyAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+        }
         
         return http.build();
     }

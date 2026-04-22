@@ -66,7 +66,13 @@ public class WebAuthnLoginService {
     public PublicKeyCredentialRequestOptions requestCredentials(String username, HttpServletRequest request,
                                                                 Set<CredentialRecord> authenticators) {
 
-        Challenge challenge = new DefaultChallenge(request.getSession().getId().getBytes());
+        return requestCredentials(username, request.getSession().getId().getBytes(), authenticators);
+    }
+
+    public PublicKeyCredentialRequestOptions requestCredentials(String username, byte[] challengeBytes,
+                                                                Set<CredentialRecord> authenticators) {
+
+        Challenge challenge = new DefaultChallenge(challengeBytes);
 
         List<PublicKeyCredentialDescriptor> allowCredentials = new ArrayList<>();
 
@@ -93,6 +99,11 @@ public class WebAuthnLoginService {
 
     public AuthenticatorData<?> processCredentials(String username, HttpServletRequest request, AssertRequest assertRequest, Set<CredentialRecord> credentialRecords) {
 
+        return processCredentials(username, request.getSession().getId().getBytes(), assertRequest, credentialRecords);
+    }
+
+    public AuthenticatorData<?> processCredentials(String username, byte[] challengeBytes, AssertRequest assertRequest, Set<CredentialRecord> credentialRecords) {
+
         byte[] id = Base64.getUrlDecoder().decode(assertRequest.getId());
 
         byte[] userHandle =  Base64.getUrlDecoder().decode(assertRequest.getResponse().getUserHandle());
@@ -102,7 +113,7 @@ public class WebAuthnLoginService {
 
         Origin origin = new Origin(webAuthnConfiguration.getOriginUrl());
 
-        Challenge challenge = new DefaultChallenge(request.getSession().getId().getBytes());
+        Challenge challenge = new DefaultChallenge(challengeBytes);
 
         byte[] tokenBindingId = null;
         ServerProperty serverProperty = new ServerProperty(origin, webAuthnConfiguration.getRpId(), challenge, tokenBindingId);

@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   mysql:
     image: mysql:8.0
@@ -9,16 +7,33 @@ services:
       MYSQL_DATABASE: passwordless
       MYSQL_USER: passwordless
       MYSQL_PASSWORD: ${DB_PASSWORD:-changeme}
+      TZ: UTC
     ports:
       - "3306:3306"
     volumes:
       - mysql-data:/var/lib/mysql
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    command: --default-time-zone=+00:00
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       timeout: 20s
       retries: 10
     networks:
       - passwordless-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: passwordless-redis
+    expose:
+      - "6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    networks:
+      - passwordless-network
+    restart: unless-stopped
 
   passwordless-service:
     image: maximthomas/passwordless
@@ -26,42 +41,101 @@ services:
     build:
       context: .
     environment:
-      # Database configuration
+      TZ: UTC
+      SERVER_FORWARD_HEADERS_STRATEGY: framework
+
+      # Database
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/passwordless?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8
       SPRING_DATASOURCE_USERNAME: passwordless
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-changeme}
-      
-      # Twilio SMS configuration (optional)
+
+      # Twilio SMS (optional)
       TWILIO_MESSAGING_SERVICE_SID: ${TWILIO_MESSAGING_SERVICE_SID:-}
       TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
       TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
 
-      # Email configuration
-      SPRING_MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
-      SPRING_MAIL_PORT: ${MAIL_PORT:-587}
-      SPRING_MAIL_USERNAME: ${MAIL_USERNAME:-}
-      SPRING_MAIL_PASSWORD: ${MAIL_PASSWORD:-}
-      SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-true}
-      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: ${MAIL_SMTP_STARTTLS_ENABLE:-true}
-      
-      # TOTP configuration
-      TOTP_ISSUER: ${TOTP_ISSUER:-passwordless.example.com}
-      TOTP_ISSUER_LABEL: ${TOTP_ISSUER_LABEL:-Passwordless Service}
-      
-      # WebAuthn configuration
-      WEBAUTHN_SETTINGS_RPID: ${WEBAUTHN_RPID:-localhost}
-      WEBAUTHN_SETTINGS_ORIGIN: ${WEBAUTHN_ORIGIN:-http://localhost:8080}
-    ports:
-      - "8080:8080"
+      # Email (dev -> MailHog)
+      SPRING_MAIL_HOST: mailhog
+      SPRING_MAIL_PORT: 1025
+      SPRING_MAIL_USERNAME:
+      SPRING_MAIL_PASSWORD:
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: false
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: false
+
+      # TOTP
+      TOTP_ISSUER: passwordless.actvn
+      TOTP_ISSUER_LABEL: Passwordless Service
+
+      # WebAuthn (IMPORTANT)
+      WEBAUTHN_SETTINGS_RPID: passwordless.actvn
+      WEBAUTHN_SETTINGS_ORIGIN: https://passwordless.actvn
+
+      # Redis (session/challenge/rate-limit state)
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+
     depends_on:
       mysql:
         condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - passwordless-network
+    restart: unless-stopped
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - passwordless-network
+    restart: unless-stopped
+
+  cert-generator:
+    image: alpine:latest
+    container_name: cert-generator
+    volumes:
+      - ./nginx/certs:/etc/nginx/certs
+    command:
+      - /bin/sh
+      - -c
+      - |
+        apk add --no-cache openssl
+        mkdir -p /etc/nginx/certs
+        if [ ! -f /etc/nginx/certs/nginx-selfsigned.crt ]; then
+          openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+            -keyout /etc/nginx/certs/nginx-selfsigned.key \
+            -out /etc/nginx/certs/nginx-selfsigned.crt \
+            -subj "/C=VN/ST=HCM/L=HCM/O=Dev/CN=passwordless.actvn" \
+            -addext "subjectAltName=DNS:passwordless.actvn,IP:192.168.119.146"
+        fi
+        chmod 644 /etc/nginx/certs/nginx-selfsigned.crt
+        chmod 600 /etc/nginx/certs/nginx-selfsigned.key
+    restart: "no"
+  nginx:
+    image: nginx:latest
+    container_name: nginx-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      cert-generator:
+        condition: service_completed_successfully
+      passwordless-service:
+        condition: service_started
     networks:
       - passwordless-network
     restart: unless-stopped
 
 volumes:
   mysql-data:
+    driver: local
+  redis-data:
     driver: local
 
 networks:

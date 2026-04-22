@@ -14,6 +14,7 @@ import org.openidentityplatform.passwordless.totp.services.TotpService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.net.URI;
 import java.security.InvalidKeyException;
@@ -28,6 +29,7 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@ActiveProfiles("test")
 public class IT_Totp {
     @LocalServerPort
     private int port;
@@ -72,7 +74,7 @@ public class IT_Totp {
                 .then().log().all()
                 .assertThat().statusCode(200)
                 .body("uri", not(emptyString()))
-                .body("image", not(emptyString()));
+            .body("qr", not(emptyString()));
 
         JsonPath jsonPath = response.extract().body().jsonPath();
         String uriString = jsonPath.getString("uri");
@@ -82,7 +84,7 @@ public class IT_Totp {
         URI uri = URI.create(uriString);
         assertEquals("otpauth", uri.getScheme());
 
-        Optional<RegisteredTotp> totp = registeredTotpRepository.findById(USERNAME);
+        Optional<RegisteredTotp> totp = registeredTotpRepository.findByUsername(USERNAME);
         assertTrue(totp.isPresent());
         assertEquals(USERNAME, totp.get().getUsername());
         assertTrue(StringUtils.isNotEmpty(totp.get().getSecret()));
@@ -91,7 +93,7 @@ public class IT_Totp {
     @Test
     void testVerify() throws InvalidKeyException {
         totpService.register(USERNAME);
-        Optional<RegisteredTotp> registeredTotp = registeredTotpRepository.findById(USERNAME);
+        Optional<RegisteredTotp> registeredTotp = registeredTotpRepository.findByUsername(USERNAME);
         assertTrue(registeredTotp.isPresent());
         Key key = totpService.restoreKey(registeredTotp.get().getSecret());
         int totp = totpGenerator.generateOneTimePassword(key, Instant.now());

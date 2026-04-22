@@ -32,6 +32,12 @@ public class WebAuthnConfiguration {
     @Value("${webauthn.settings.timeout:60000}")
     private long timeout;
 
+    @Value("${webauthn.settings.ceremonyTtlSeconds:300}")
+    private long ceremonyTtlSeconds;
+
+    @Value("${webauthn.settings.requireResidentKey:false}")
+    private boolean requireResidentKey;
+
     @Value("${webauthn.settings.origin}")
     private String originUrl;
 

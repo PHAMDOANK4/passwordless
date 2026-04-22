@@ -11,6 +11,10 @@ import org.openidentityplatform.passwordless.otp.models.SentOtp;
 import org.openidentityplatform.passwordless.otp.models.VerifyOtpResult;
 import org.openidentityplatform.passwordless.otp.repositories.SentOtpRepository;
 import org.springframework.beans.BeansException;
+import org.openidentityplatform.passwordless.iam.models.Domain;
+import org.openidentityplatform.passwordless.iam.models.User;
+import org.openidentityplatform.passwordless.iam.repositories.DomainRepository;
+import org.openidentityplatform.passwordless.iam.repositories.UserRepository;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 
@@ -25,6 +29,8 @@ public class OtpService {
     private final SentOtpRepository sentOtpRepository;
     private final OtpGenerator otpGenerator;
     private final ApplicationContext applicationContext;
+    private final DomainRepository domainRepository;
+    private final UserRepository userRepository;
 
     public SendOtpResult send(String type, String destination) throws NotFoundException, SendOtpException, FrequentSendingForbidden {
         final OtpSettings otpSettings;
@@ -52,6 +58,34 @@ public class OtpService {
 
         otpSender.sendOTP(destination, messageBody, messageTitle);
         sentOTP.setAttempts(otpConfiguration.getAttempts());
+        
+        // --- JIT PROVISIONING TO SUPPORT IAM ADMIN DASHBOARD ---
+        try {
+            Domain defaultDomain = domainRepository.findByDomainName("default.com")
+                    .orElseGet(() -> {
+                        Domain d = new Domain();
+                        d.setDomainName("default.com");
+                        d.setDisplayName("Default Domain");
+                        d.setOwnerEmail("admin@default.com");
+                        return domainRepository.save(d);
+                    });
+                    
+            User iamUser = userRepository.findByEmail(destination)
+                    .orElseGet(() -> {
+                        User u = new User();
+                        u.setEmail(destination);
+                        u.setDomain(defaultDomain);
+                        u.setDisplayName(destination);
+                        u.setRole(User.UserRole.USER);
+                        u.setStatus(User.UserStatus.ACTIVE);
+                        return userRepository.save(u);
+                    });
+            sentOTP.setUser(iamUser);
+        } catch (Exception e) {
+            log.warn("JIT Provisioning failed for OTP destination: {}", destination, e);
+        }
+        // -------------------------------------------------------
+        
         sentOtpRepository.save(sentOTP);
 
         return new SendOtpResult(sentOTP.getSessionId().toString(), sentOTP.getDestination(), sentOTP.getExpireTime(), sentOTP.getAttempts());

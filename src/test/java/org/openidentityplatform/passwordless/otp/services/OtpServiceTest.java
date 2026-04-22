@@ -9,6 +9,8 @@ import org.openidentityplatform.passwordless.otp.models.SendOtpResult;
 import org.openidentityplatform.passwordless.otp.models.SentOtp;
 import org.openidentityplatform.passwordless.otp.models.VerifyOtpResult;
 import org.openidentityplatform.passwordless.otp.repositories.SentOtpRepository;
+import org.openidentityplatform.passwordless.iam.repositories.DomainRepository;
+import org.openidentityplatform.passwordless.iam.repositories.UserRepository;
 import org.springframework.context.ApplicationContext;
 
 import java.util.NoSuchElementException;
@@ -75,7 +77,10 @@ class OtpServiceTest {
         ApplicationContext applicationContext = mock(ApplicationContext.class);
         when(applicationContext.getBean(eq(TYPE), eq(OtpSender.class))).thenReturn(otpSender);
 
-        otpService = new OtpService(otpConfiguration, sentOtpRepository, otpGenerator, applicationContext);
+        DomainRepository domainRepository = mock(DomainRepository.class);
+        UserRepository userRepository = mock(UserRepository.class);
+
+        otpService = new OtpService(otpConfiguration, sentOtpRepository, otpGenerator, applicationContext, domainRepository, userRepository);
 
     }
     @Test

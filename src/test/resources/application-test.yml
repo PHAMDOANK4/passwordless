@@ -45,3 +45,7 @@ webauthn:
 totp:
   issuer: "test.com"
   issuerLabel: "Test"
+
+security:
+  api-key-filter:
+    enabled: false
