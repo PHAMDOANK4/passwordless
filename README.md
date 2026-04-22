@@ -12,6 +12,7 @@ A centralized authentication service that provides passwordless authentication m
 - **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment instructions
 - **[IdP Portal Guide](docs/IDP_PORTAL_GUIDE.md)** - End-user /idp flows and example payloads
 - **[OAuth2 Client Testing Guide](docs/OAUTH2_CLIENT_TESTING_GUIDE.md)** - End-to-end OAuth2 + PKCE testing steps
+- **[Codebase Function & Module Documentation (VI)](docs/CODEBASE_FUNCTION_MODULE_DOCUMENTATION_VI.md)** - Mô tả logic từng module và các hàm chính
 - **[Quick Start](#quick-start)** - Get started in 5 minutes
 
 # Table of contents
