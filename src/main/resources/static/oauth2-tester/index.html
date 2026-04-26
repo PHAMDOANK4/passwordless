@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OAuth2 Test Lab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/app.css" />
+</head>
+<body>
+  <div class="backdrop"></div>
+  <main class="shell">
+    <header class="hero card">
+      <div>
+        <p class="eyebrow">IdP Integration Toolkit</p>
+        <h1>OAuth2 Test Lab</h1>
+        <p class="sub">
+          Test Authorization Code + PKCE, Refresh Token, Client Credentials, Introspection, Revocation, and UserInfo
+          against the local IdP in one screen.
+        </p>
+      </div>
+      <div class="hero-actions">
+        <button id="btnLoadDiscovery" class="btn btn-accent">Load Discovery</button>
+        <button id="btnClearState" class="btn btn-muted">Clear Local State</button>
+      </div>
+    </header>
+
+    <section class="grid">
+      <article class="card span-2">
+        <h2>Environment</h2>
+        <div class="row cols-3">
+          <label>
+            Base URL
+            <input id="baseUrl" type="text" value="http://localhost:8080" />
+          </label>
+          <label>
+            Authorization Header (User Access Token)
+            <input id="userBearer" type="text" placeholder="Bearer eyJ..." />
+          </label>
+          <label>
+            Redirect URI
+            <input id="redirectUri" type="text" value="http://localhost:3000/callback" />
+          </label>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>Authorization Code + PKCE</h2>
+        <div class="stack">
+          <div class="row cols-2">
+            <label>Client ID<input id="authClientId" type="text" value="web-pkce-client" /></label>
+            <label>Scope<input id="authScope" type="text" value="openid profile email" /></label>
+          </div>
+          <div class="row cols-2">
+            <label>State<input id="authState" type="text" /></label>
+            <label>Nonce<input id="authNonce" type="text" /></label>
+          </div>
+          <div class="row cols-2">
+            <label>Code Verifier<input id="pkceVerifier" type="text" /></label>
+            <label>Code Challenge<input id="pkceChallenge" type="text" /></label>
+          </div>
+          <div class="actions">
+            <button id="btnGenPkce" class="btn btn-muted">Generate PKCE + State</button>
+            <button id="btnAuthorize" class="btn btn-primary">Authorize</button>
+          </div>
+          <label>
+            Authorization Code
+            <input id="authorizationCode" type="text" placeholder="Filled after authorize" />
+          </label>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>Token Endpoint</h2>
+        <div class="stack">
+          <div class="row cols-2">
+            <label>Client ID<input id="tokenClientId" type="text" value="web-pkce-client" /></label>
+            <label>Client Secret<input id="tokenClientSecret" type="text" placeholder="Optional for PKCE client" /></label>
+          </div>
+          <div class="actions">
+            <button id="btnExchange" class="btn btn-primary">Exchange Code</button>
+            <button id="btnRefresh" class="btn btn-muted">Refresh Token</button>
+          </div>
+          <label>Access Token<textarea id="accessToken" spellcheck="false"></textarea></label>
+          <label>Refresh Token<textarea id="refreshToken" spellcheck="false"></textarea></label>
+          <label>ID Token<textarea id="idToken" spellcheck="false"></textarea></label>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>Client Credentials</h2>
+        <div class="stack">
+          <div class="row cols-2">
+            <label>Service Client ID<input id="svcClientId" type="text" value="service-client" /></label>
+            <label>Service Client Secret<input id="svcClientSecret" type="text" placeholder="pcs_..." /></label>
+          </div>
+          <label>Scope<input id="svcScope" type="text" value="api.read" /></label>
+          <button id="btnClientCredentials" class="btn btn-primary">Get Access Token</button>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>Token Tools</h2>
+        <div class="stack">
+          <div class="row cols-2">
+            <label>Token for Introspect/Revoke<textarea id="manageToken" spellcheck="false"></textarea></label>
+            <label>Token Type Hint
+              <select id="tokenHint">
+                <option value="">(none)</option>
+                <option value="access_token">access_token</option>
+                <option value="refresh_token">refresh_token</option>
+              </select>
+            </label>
+          </div>
+          <div class="row cols-2">
+            <label>Auth Client ID<input id="manageClientId" type="text" value="service-client" /></label>
+            <label>Auth Client Secret<input id="manageClientSecret" type="text" placeholder="pcs_..." /></label>
+          </div>
+          <div class="actions">
+            <button id="btnUserInfo" class="btn btn-muted">Get UserInfo</button>
+            <button id="btnIntrospect" class="btn btn-primary">Introspect</button>
+            <button id="btnRevoke" class="btn btn-danger">Revoke</button>
+          </div>
+        </div>
+      </article>
+
+      <article class="card span-2">
+        <h2>Response Console</h2>
+        <p class="tip">Latest API responses and errors appear here.</p>
+        <pre id="console" class="console">Ready.</pre>
+      </article>
+    </section>
+  </main>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

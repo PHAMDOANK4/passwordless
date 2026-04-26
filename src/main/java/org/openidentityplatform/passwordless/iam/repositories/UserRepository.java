@@ -33,6 +33,13 @@ public interface UserRepository extends JpaRepository<User, String> {
      * Find user by email
      */
     Optional<User> findByEmail(String email);
+
+    /**
+     * Find user by email and eagerly fetch domain to avoid lazy-loading issues
+     * in auth flows when Open Session In View is disabled.
+     */
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.domain WHERE u.email = :email")
+    Optional<User> findByEmailWithDomain(@Param("email") String email);
     
     /**
      * Check if email exists

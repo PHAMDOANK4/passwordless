@@ -26,6 +26,14 @@ public class CreateDomainRequest {
     private String ownerEmail;
     
     private Boolean requireMfa = false;
+
+    private Boolean ssoEnabled = false;
+
+    private String ssoConfig;
+
+    private Boolean active = true;
+
+    private String customLoginUrl;
     
     private Integer maxUsers;
     

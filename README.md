@@ -11,7 +11,12 @@ A centralized authentication service that provides passwordless authentication m
 - **[API Documentation](docs/API_DOCUMENTATION.md)** - Complete API reference with examples
 - **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment instructions
 - **[IdP Portal Guide](docs/IDP_PORTAL_GUIDE.md)** - End-user /idp flows and example payloads
+- **[IdP Developer Integration Guide](docs/IDP_DEVELOPER_INTEGRATION_GUIDE.md)** - How application teams integrate the IdP into their apps
+- **[SSO/OAuth2 Integration Guide (VI)](docs/SSO_OAUTH2_INTEGRATION_GUIDE_VI.md)** - SSO, OAuth2, OIDC, PKCE, token validation, and app integration
 - **[OAuth2 Client Testing Guide](docs/OAUTH2_CLIENT_TESTING_GUIDE.md)** - End-to-end OAuth2 + PKCE testing steps
+- **[OAuth2 Auth Server Design](docs/OAUTH2_AUTH_SERVER_DESIGN.md)** - Architecture, security controls, and production hardening
+- **[OAuth2 cURL Testing Guide](docs/OAUTH2_CURL_TESTING_GUIDE.md)** - End-to-end test commands for auth code, refresh, client credentials, introspection, revoke
+- **OAuth2 Web Tester UI** - Open `/oauth2-tester/index.html` in your browser for interactive OAuth2 flow testing
 - **[Quick Start](#quick-start)** - Get started in 5 minutes
 
 # Table of contents

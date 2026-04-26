@@ -20,7 +20,6 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
 import java.security.SecureRandom;
 import java.security.interfaces.RSAPublicKey;
 import java.security.interfaces.RSAPrivateKey;
@@ -70,6 +69,26 @@ public class JwtTokenService {
         return sign(builder.build());
     }
 
+    public String issueClientCredentialsAccessToken(String clientId, String scope) {
+        Instant now = Instant.now();
+        Instant expiry = now.plusSeconds(tokenProperties.getAccessTokenLifetimeSeconds());
+        String jti = UUID.randomUUID().toString();
+
+        JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
+                .issuer(tokenProperties.getIssuer())
+                .subject(clientId)
+                .audience(tokenProperties.getAudience())
+                .claim("client_id", clientId)
+                .claim("scope", scope)
+                .claim("grant_type", "client_credentials")
+                .jwtID(jti)
+                .issueTime(Date.from(now))
+                .expirationTime(Date.from(expiry))
+                .build();
+
+        return sign(claimsSet);
+    }
+
     public String issueIdToken(User user, String clientId, String nonce) {
         Instant now = Instant.now();
         Instant expiry = now.plusSeconds(tokenProperties.getAccessTokenLifetimeSeconds());
@@ -112,6 +131,9 @@ public class JwtTokenService {
             }
             if (!tokenProperties.getIssuer().equals(claimsSet.getIssuer())) {
                 throw new IllegalArgumentException("Access token issuer mismatch");
+            }
+            if (claimsSet.getAudience() == null || !claimsSet.getAudience().contains(tokenProperties.getAudience())) {
+                throw new IllegalArgumentException("Access token audience mismatch");
             }
             return claimsSet;
         } catch (Exception e) {

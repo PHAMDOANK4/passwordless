@@ -16,8 +16,10 @@ public class DomainResponse {
     private boolean active;
     private boolean requireMfa;
     private boolean ssoEnabled;
+    private String ssoConfig;
     private Integer maxUsers;
     private Integer currentUsers;
+    private String customLoginUrl;
     private String logoUrl;
     private Instant createdAt;
     private Instant updatedAt;

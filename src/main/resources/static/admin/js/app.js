@@ -39,6 +39,13 @@ const API = {
     rotateSecret: id => `/admin/api/oauth2/clients/${id}/rotate-secret`,
     delete: id => `/admin/api/oauth2/clients/${id}`,
   },
+  domains: {
+    list: () => '/admin/api/domains',
+    detail: id => `/admin/api/domains/${id}`,
+    create: () => '/admin/api/domains',
+    update: id => `/admin/api/domains/${id}`,
+    delete: id => `/admin/api/domains/${id}`,
+  },
   audit: {
     logs: (p, s) => `/apps/v1/audit/logs?page=${p}&size=${s}`,
   }
@@ -161,6 +168,7 @@ function navigate(page, params = {}) {
     'user-detail':'Chi tiết người dùng',
     apps:'Ứng dụng',
     'oauth-clients':'OAuth2 Clients',
+    domains:'Domain SSO',
     audit:'Audit Logs'
   };
   const bc = document.getElementById('breadcrumb');
@@ -1329,6 +1337,286 @@ function showOAuthClientSecret(secret, heading) {
       showToast('Không thể copy tự động', 'error');
     }
   };
+}
+
+// =========================================================
+// PAGE: DOMAIN SSO
+// =========================================================
+pages.domains = async function () {
+  const content = document.getElementById('mainContent');
+  content.innerHTML = `<div class="page-header"><h1>Domain SSO</h1><p>Quản lý cài đặt SSO theo domain và bật/tắt local auth policy</p></div>
+    <div class="card">
+      <div class="tabs" id="domainTabs">
+        <button class="tab-btn active" data-domain-tab="list">🏷️ Danh sách Domain</button>
+        <button class="tab-btn" data-domain-tab="edit">⚙️ Cấu hình SSO</button>
+      </div>
+      <div id="domainListTab" class="tab-panel active">
+        <div class="card-header"><div class="card-title">🌐 Domain Registry</div></div>
+        <div id="domainsArea"><div class="page-loading" style="padding:30px"><div class="spinner"></div></div></div>
+      </div>
+      <div id="domainEditTab" class="tab-panel">
+        <div class="card-header"><div class="card-title">🔐 Domain SSO Settings</div></div>
+        <div class="card-body" id="domainFormBody"></div>
+      </div>
+    </div>`;
+
+  renderDomainEditor();
+  await loadDomainCards();
+
+  document.querySelectorAll('#domainTabs .tab-btn').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('#domainTabs .tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('#mainContent .tab-panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      if (btn.dataset.domainTab === 'edit') {
+        document.getElementById('domainEditTab').classList.add('active');
+      } else {
+        document.getElementById('domainListTab').classList.add('active');
+      }
+    };
+  });
+};
+
+async function loadDomainCards() {
+  const area = document.getElementById('domainsArea');
+  if (!area) return;
+  area.innerHTML = '<div class="page-loading" style="padding:30px"><div class="spinner"></div></div>';
+
+  try {
+    const domains = await apiFetch(API.domains.list());
+    if (!domains.length) {
+      area.innerHTML = emptyKeys('Chưa có domain nào');
+      return;
+    }
+
+    area.innerHTML = `<div class="domain-grid">${domains.map(domain => domainCard(domain)).join('')}</div>`;
+    area.querySelectorAll('[data-domain-action]').forEach(btn => {
+      btn.onclick = () => handleDomainAction(btn.dataset.domainAction, btn.dataset.id, btn.dataset.name);
+    });
+  } catch (e) {
+    area.innerHTML = errorState('Không tải được danh sách domain');
+  }
+}
+
+function domainCard(domain) {
+  const ssoBadge = domain.ssoEnabled
+    ? '<span class="badge badge-passkey"><span class="badge-dot"></span>SSO Enabled</span>'
+    : '<span class="badge badge-suspended">Local Auth</span>';
+  const mfaBadgeHtml = domain.requireMfa
+    ? '<span class="badge badge-totp">MFA Required</span>'
+    : '<span class="badge">MFA Optional</span>';
+
+  return `<div class="domain-card">
+    <div>
+      <div class="domain-card-title">${domain.displayName}</div>
+      <div class="domain-card-sub" style="font-family:monospace">${domain.domainName}</div>
+      <div class="domain-card-meta">
+        <span class="app-meta-item"><strong>Owner:</strong> ${domain.ownerEmail || '—'}</span>
+        <span class="app-meta-item"><strong>Users:</strong> ${domain.currentUsers ?? 0}${domain.maxUsers ? ` / ${domain.maxUsers}` : ''}</span>
+        <span class="app-meta-item"><strong>Login URL:</strong> ${domain.customLoginUrl || '—'}</span>
+        <span class="app-meta-item"><strong>Created:</strong> ${fmtDate(domain.createdAt)}</span>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${ssoBadge}${mfaBadgeHtml}</div>
+      ${domain.ssoConfig ? `<div class="domain-config-preview">${truncate(domain.ssoConfig, 120)}</div>` : ''}
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+      ${domain.active ? '<span class="badge badge-active"><span class="badge-dot"></span>Active</span>' : '<span class="badge badge-deleted">Inactive</span>'}
+      <div class="actions">
+        <button class="btn btn-sm" data-domain-action="edit" data-id="${domain.id}" data-name="${domain.displayName}">Edit</button>
+        <button class="btn btn-sm btn-danger" data-domain-action="delete" data-id="${domain.id}" data-name="${domain.displayName}">Delete</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function handleDomainAction(action, id, name) {
+  if (action === 'edit') {
+    const domain = await apiFetch(API.domains.detail(id));
+    populateDomainForm(domain);
+    showToast(`Editing ${name}`, 'info');
+    const editTabButton = document.querySelector('#domainTabs .tab-btn[data-domain-tab="edit"]');
+    if (editTabButton) editTabButton.click();
+    return;
+  }
+
+  if (action === 'delete') {
+    const ok = await showConfirm('Delete Domain', `<span style="color:var(--rose)">⚠️ Không thể hoàn tác!</span><br>Xóa domain <strong>${name}</strong>?`);
+    if (!ok) return;
+    await apiFetch(API.domains.delete(id), { method: 'DELETE' });
+    showToast('Đã xóa domain', 'success');
+    await loadDomainCards();
+    return;
+  }
+}
+
+function renderDomainEditor() {
+  const body = document.getElementById('domainFormBody');
+  if (!body) return;
+
+  body.innerHTML = `
+    <form id="domainForm" style="display:grid;gap:14px;max-width:900px">
+      <input type="hidden" id="domainEditId" value="" />
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px">
+        <div>
+          <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px">Domain Name *</label>
+          <input id="domainName" class="filter-input" placeholder="acme.com" required />
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px">Display Name *</label>
+          <input id="domainDisplayName" class="filter-input" placeholder="Acme Corp" required />
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px">
+        <div>
+          <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px">Owner Email *</label>
+          <input id="domainOwnerEmail" class="filter-input" type="email" placeholder="owner@acme.com" required />
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px">Custom Login URL</label>
+          <input id="domainCustomLoginUrl" class="filter-input" placeholder="https://login.acme.com" />
+        </div>
+      </div>
+
+      <div>
+        <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px">Description</label>
+        <textarea id="domainDescription" class="filter-input" style="min-height:88px;resize:vertical" placeholder="Domain / organization description"></textarea>
+      </div>
+
+      <div>
+        <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px">SSO Config JSON</label>
+        <textarea id="domainSsoConfig" class="filter-input" style="min-height:140px;resize:vertical;font-family:monospace" placeholder='{"issuer":"https://sso.acme.com","clientId":"..."}'></textarea>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+        <div>
+          <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px">Logo URL</label>
+          <input id="domainLogoUrl" class="filter-input" placeholder="https://acme.com/logo.png" />
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px">Max Users</label>
+          <input id="domainMaxUsers" class="filter-input" type="number" min="1" placeholder="100" />
+        </div>
+      </div>
+
+      <div style="display:flex;gap:18px;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="domainActive" checked /> Active</label>
+        <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="domainRequireMfa" /> Require MFA</label>
+        <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="domainSsoEnabled" /> SSO Enabled</label>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button type="submit" class="btn btn-success" id="domainSubmitBtn">Create Domain</button>
+        <button type="button" class="btn btn-ghost" id="domainCancelEditBtn" style="display:none">Cancel Edit</button>
+        <span style="font-size:12px;color:var(--text-muted)">Bật SSO sẽ chặn local register/login cho domain này.</span>
+      </div>
+    </form>
+    <div id="domainFormResult" style="margin-top:16px"></div>`;
+
+  document.getElementById('domainForm').addEventListener('submit', handleDomainSubmit);
+  document.getElementById('domainCancelEditBtn').onclick = () => clearDomainEditState(true);
+}
+
+async function handleDomainSubmit(event) {
+  event.preventDefault();
+  const submitBtn = document.getElementById('domainSubmitBtn');
+  const editId = document.getElementById('domainEditId').value.trim();
+  const maxUsersRaw = document.getElementById('domainMaxUsers').value.trim();
+  const ssoConfigRaw = document.getElementById('domainSsoConfig').value.trim();
+
+  let parsedSsoConfig = null;
+  if (ssoConfigRaw) {
+    try {
+      JSON.parse(ssoConfigRaw);
+      parsedSsoConfig = ssoConfigRaw;
+    } catch (error) {
+      showToast('SSO Config phải là JSON hợp lệ', 'error');
+      return;
+    }
+  }
+
+  const payload = {
+    domainName: document.getElementById('domainName').value.trim(),
+    displayName: document.getElementById('domainDisplayName').value.trim(),
+    ownerEmail: document.getElementById('domainOwnerEmail').value.trim(),
+    description: document.getElementById('domainDescription').value.trim(),
+    customLoginUrl: document.getElementById('domainCustomLoginUrl').value.trim(),
+    logoUrl: document.getElementById('domainLogoUrl').value.trim(),
+    requireMfa: document.getElementById('domainRequireMfa').checked,
+    ssoEnabled: document.getElementById('domainSsoEnabled').checked,
+    ssoConfig: parsedSsoConfig,
+    maxUsers: maxUsersRaw ? Number(maxUsersRaw) : null
+  };
+
+  if (!payload.domainName || !payload.displayName || !payload.ownerEmail) {
+    showToast('Domain name, display name và owner email là bắt buộc', 'error');
+    return;
+  }
+
+  try {
+    submitBtn.disabled = true;
+    submitBtn.textContent = editId ? 'Đang cập nhật...' : 'Đang tạo...';
+
+    if (editId) {
+      await apiFetch(API.domains.update(editId), {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      });
+      showToast('Đã cập nhật domain', 'success');
+      clearDomainEditState(false);
+    } else {
+      await apiFetch(API.domains.create(), {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      showToast('Đã tạo domain', 'success');
+    }
+
+    await loadDomainCards();
+  } catch (e) {
+    const actionLabel = editId ? 'cập nhật' : 'tạo';
+    showToast(`Không thể ${actionLabel} domain: ${e.message}`, 'error');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = document.getElementById('domainEditId').value.trim()
+      ? 'Update Domain'
+      : 'Create Domain';
+  }
+}
+
+function populateDomainForm(domain) {
+  document.getElementById('domainEditId').value = domain.id || '';
+  document.getElementById('domainName').value = domain.domainName || '';
+  document.getElementById('domainDisplayName').value = domain.displayName || '';
+  document.getElementById('domainOwnerEmail').value = domain.ownerEmail || '';
+  document.getElementById('domainDescription').value = domain.description || '';
+  document.getElementById('domainCustomLoginUrl').value = domain.customLoginUrl || '';
+  document.getElementById('domainLogoUrl').value = domain.logoUrl || '';
+  document.getElementById('domainMaxUsers').value = domain.maxUsers ?? '';
+  document.getElementById('domainActive').checked = !!domain.active;
+  document.getElementById('domainRequireMfa').checked = !!domain.requireMfa;
+  document.getElementById('domainSsoEnabled').checked = !!domain.ssoEnabled;
+  document.getElementById('domainSsoConfig').value = domain.ssoConfig || '';
+
+  document.getElementById('domainSubmitBtn').textContent = 'Update Domain';
+  document.getElementById('domainCancelEditBtn').style.display = 'inline-flex';
+}
+
+function clearDomainEditState(clearResult) {
+  const form = document.getElementById('domainForm');
+  if (form) form.reset();
+
+  document.getElementById('domainEditId').value = '';
+  document.getElementById('domainActive').checked = true;
+  document.getElementById('domainRequireMfa').checked = false;
+  document.getElementById('domainSsoEnabled').checked = false;
+  document.getElementById('domainSubmitBtn').textContent = 'Create Domain';
+  document.getElementById('domainCancelEditBtn').style.display = 'none';
+
+  if (clearResult) {
+    const result = document.getElementById('domainFormResult');
+    if (result) result.innerHTML = '';
+  }
 }
 
 // =========================================================

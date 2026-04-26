@@ -3,6 +3,7 @@ package org.openidentityplatform.passwordless.oauth2.controllers;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
+import org.openidentityplatform.passwordless.auth.configuration.AuthSessionCookie;
 import org.openidentityplatform.passwordless.oauth2.dto.OAuth2AuthorizeRequest;
 import org.openidentityplatform.passwordless.oauth2.dto.OAuth2AuthorizeResponse;
 import org.openidentityplatform.passwordless.oauth2.dto.OAuth2TokenResponse;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.CookieValue;
 
 import java.net.URI;
 import java.net.URLDecoder;
@@ -55,10 +57,12 @@ public class OAuth2Controller {
             @RequestParam(value = "code_challenge_method", required = false) String codeChallengeMethod,
             @RequestParam(value = "nonce", required = false) String nonce,
             @RequestHeader(value = "Authorization", required = false) String authorization,
+            @CookieValue(value = AuthSessionCookie.NAME, required = false) String sessionCookie,
             HttpServletRequest request
     ) throws OAuth2FlowException {
         String redirect = authorizationService.authorize(
                 authorization,
+                sessionCookie,
                 responseType,
                 clientId,
                 redirectUri,
@@ -79,10 +83,12 @@ public class OAuth2Controller {
     public OAuth2AuthorizeResponse authorizeJson(
             @RequestBody @Valid OAuth2AuthorizeRequest authorizeRequest,
             @RequestHeader(value = "Authorization", required = false) String authorization,
+            @CookieValue(value = AuthSessionCookie.NAME, required = false) String sessionCookie,
             HttpServletRequest request
     ) throws OAuth2FlowException {
         String redirect = authorizationService.authorize(
                 authorization,
+            sessionCookie,
                 authorizeRequest.getResponseType(),
                 authorizeRequest.getClientId(),
                 authorizeRequest.getRedirectUri(),
@@ -139,11 +145,14 @@ public class OAuth2Controller {
         config.put("revocation_endpoint", issuer + "/oauth2/revoke");
         config.put("end_session_endpoint", issuer + "/auth/logout");
         config.put("response_types_supported", List.of("code"));
-        config.put("grant_types_supported", List.of("authorization_code", "refresh_token"));
+        config.put("grant_types_supported", List.of("authorization_code", "refresh_token", "client_credentials"));
         config.put("subject_types_supported", List.of("public"));
         config.put("id_token_signing_alg_values_supported", List.of("RS256"));
-        config.put("scopes_supported", List.of("openid", "profile", "email"));
+        config.put("scopes_supported", List.of("openid", "profile", "email", "api.read", "api.write"));
         config.put("token_endpoint_auth_methods_supported", List.of("client_secret_post", "none"));
+        config.put("introspection_endpoint_auth_methods_supported", List.of("client_secret_post"));
+        config.put("revocation_endpoint_auth_methods_supported", List.of("client_secret_post"));
+        config.put("code_challenge_methods_supported", List.of("S256"));
         config.put("claims_supported", List.of("sub", "email", "name", "preferred_username", "nonce"));
         return config;
     }

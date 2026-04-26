@@ -1,6 +1,7 @@
 package org.openidentityplatform.passwordless.auth.controllers;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -17,16 +18,10 @@ class IdpPageControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @Test
-    void idpRoute_redirectsToStaticIndex() throws Exception {
-        mockMvc.perform(get("/idp"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/idp/index.html"));
-    }
-
-    @Test
-    void idpRouteWithTrailingSlash_redirectsToStaticIndex() throws Exception {
-        mockMvc.perform(get("/idp/"))
+    @ParameterizedTest
+    @ValueSource(strings = {"/idp", "/idp/"})
+    void idpRoute_redirectsToStaticIndex(String path) throws Exception {
+        mockMvc.perform(get(path))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/idp/index.html"));
     }

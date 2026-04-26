@@ -6,7 +6,6 @@ import org.openidentityplatform.passwordless.oauth2.models.AuthorizationCode;
 import org.openidentityplatform.passwordless.oauth2.models.OAuthClient;
 import org.openidentityplatform.passwordless.oauth2.repositories.AuthorizationCodeRepository;
 import org.openidentityplatform.passwordless.oauth2.repositories.OAuthClientRepository;
-import org.openidentityplatform.passwordless.oauth2.services.SessionService;
 import org.openidentityplatform.passwordless.token.models.TokenPair;
 import org.openidentityplatform.passwordless.token.services.InvalidRefreshTokenException;
 import org.openidentityplatform.passwordless.token.services.JwtTokenService;
@@ -19,8 +18,12 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Base64;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @AllArgsConstructor
@@ -48,6 +51,9 @@ public class OAuth2TokenService {
         if ("refresh_token".equals(grantType)) {
             return handleRefreshTokenGrant(formParams);
         }
+        if ("client_credentials".equals(grantType)) {
+            return handleClientCredentialsGrant(formParams);
+        }
 
         throw new OAuth2FlowException("Unsupported grant_type");
     }
@@ -65,6 +71,7 @@ public class OAuth2TokenService {
         }
 
         OAuthClient client = validateClient(clientId, clientSecret);
+        ensureGrantAllowed(client, "authorization_code");
 
         AuthorizationCode code = authorizationCodeRepository
                 .findByCodeAndUsedFalseAndExpiresAtAfter(codeValue, Instant.now())
@@ -119,7 +126,8 @@ public class OAuth2TokenService {
         }
 
         if (clientId != null && !clientId.isBlank()) {
-            validateClient(clientId, clientSecret);
+            OAuthClient client = validateClient(clientId, clientSecret);
+            ensureGrantAllowed(client, "refresh_token");
         }
 
         TokenPair pair = refreshTokenService.refresh(refreshToken, clientId);
@@ -131,6 +139,35 @@ public class OAuth2TokenService {
                 pair.getRefreshToken(),
                 null,
                 "openid profile email"
+        );
+    }
+
+    private OAuth2TokenResponse handleClientCredentialsGrant(Map<String, String> formParams) throws OAuth2FlowException {
+        String clientId = formParams.get("client_id");
+        String clientSecret = formParams.get("client_secret");
+        String requestedScope = formParams.get("scope");
+
+        if (clientId == null || clientId.isBlank()) {
+            throw new OAuth2FlowException("client_id is required");
+        }
+
+        OAuthClient client = validateClient(clientId, clientSecret);
+        ensureGrantAllowed(client, "client_credentials");
+
+        if (client.isRequirePkce()) {
+            throw new OAuth2FlowException("client_credentials is not allowed for public clients");
+        }
+
+        String scope = resolveClientCredentialsScope(client, requestedScope);
+        String accessToken = jwtTokenService.issueClientCredentialsAccessToken(clientId, scope);
+
+        return new OAuth2TokenResponse(
+                accessToken,
+                "Bearer",
+                jwtTokenService.getAccessTokenLifetimeSeconds(),
+                null,
+                null,
+                scope
         );
     }
 
@@ -151,6 +188,52 @@ public class OAuth2TokenService {
         return client;
     }
 
+    private void ensureGrantAllowed(OAuthClient client, String grantType) throws OAuth2FlowException {
+        String clientGrantTypes = client.getGrantTypes();
+        if (clientGrantTypes == null || clientGrantTypes.isBlank()) {
+            if ("authorization_code".equals(grantType) || "refresh_token".equals(grantType)) {
+                return;
+            }
+            throw new OAuth2FlowException("Unsupported grant_type for client");
+        }
+
+        Set<String> allowed = Arrays.stream(clientGrantTypes.split("[,\\s]+"))
+                .map(String::trim)
+                .filter(v -> !v.isBlank())
+                .collect(Collectors.toSet());
+        if (!allowed.contains(grantType)) {
+            throw new OAuth2FlowException("Unsupported grant_type for client");
+        }
+    }
+
+    private String resolveClientCredentialsScope(OAuthClient client, String requestedScope) throws OAuth2FlowException {
+        Set<String> allowed = Arrays.stream((client.getAllowedScopes() == null ? "" : client.getAllowedScopes()).split("\\s+"))
+                .map(String::trim)
+                .filter(v -> !v.isBlank())
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        if (allowed.isEmpty()) {
+            allowed.add("api.read");
+        }
+
+        if (requestedScope == null || requestedScope.isBlank()) {
+            return String.join(" ", allowed);
+        }
+
+        Set<String> requested = Arrays.stream(requestedScope.split("\\s+"))
+                .map(String::trim)
+                .filter(v -> !v.isBlank())
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        for (String scope : requested) {
+            if (!allowed.contains(scope)) {
+                throw new OAuth2FlowException("Invalid scope requested: " + scope);
+            }
+        }
+
+        return String.join(" ", requested);
+    }
+
     private void validatePkce(AuthorizationCode code, String codeVerifier, boolean requirePkce) throws OAuth2FlowException {
         if (!requirePkce && (code.getCodeChallenge() == null || code.getCodeChallenge().isBlank())) {
             return;
@@ -163,12 +246,10 @@ public class OAuth2TokenService {
         String method = code.getCodeChallengeMethod() == null ? "S256" : code.getCodeChallengeMethod();
         String calculated;
 
-        if ("plain".equalsIgnoreCase(method)) {
-            calculated = codeVerifier;
-        } else if ("S256".equalsIgnoreCase(method)) {
+        if ("S256".equalsIgnoreCase(method)) {
             calculated = s256(codeVerifier);
         } else {
-            throw new OAuth2FlowException("Unsupported code_challenge_method");
+            throw new OAuth2FlowException("code_challenge_method must be S256");
         }
 
         if (!calculated.equals(code.getCodeChallenge())) {

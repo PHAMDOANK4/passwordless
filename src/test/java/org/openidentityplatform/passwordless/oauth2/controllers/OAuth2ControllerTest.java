@@ -45,9 +45,12 @@ class OAuth2ControllerTest {
     @MockBean
     private JwtTokenService jwtTokenService;
 
+        private static final String AUTHORIZATION_HEADER = "Bearer test-token";
+
     @Test
     void authorizeJson_returnsParsedCodeAndState_forCamelCaseRequest() throws Exception {
         when(authorizationService.authorize(
+                any(),
                 any(),
                 eq("code"),
                 eq("web-app-prod"),
@@ -73,10 +76,7 @@ class OAuth2ControllerTest {
                 }
                 """;
 
-        mockMvc.perform(post("/oauth2/authorize")
-                        .header("Authorization", "Bearer test-token")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body))
+        performAuthorize(body)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.redirectUri").value("https://client.example.com/callback?code=abc123&state=state-123"))
                 .andExpect(jsonPath("$.code").value("abc123"))
@@ -86,6 +86,7 @@ class OAuth2ControllerTest {
     @Test
     void authorizeJson_acceptsSnakeCaseRequestFields() throws Exception {
         when(authorizationService.authorize(
+                any(),
                 any(),
                 eq("code"),
                 eq("snake-client"),
@@ -111,10 +112,7 @@ class OAuth2ControllerTest {
                 }
                 """;
 
-        mockMvc.perform(post("/oauth2/authorize")
-                        .header("Authorization", "Bearer test-token")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body))
+        performAuthorize(body)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.redirectUri").value("https://client.example.com/cb?code=xyz789&state=s%2B1"))
                 .andExpect(jsonPath("$.code").value("xyz789"))
@@ -129,10 +127,7 @@ class OAuth2ControllerTest {
                 }
                 """;
 
-        mockMvc.perform(post("/oauth2/authorize")
-                        .header("Authorization", "Bearer test-token")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body))
+        performAuthorize(body)
                 .andExpect(status().isBadRequest());
 
         verifyNoInteractions(authorizationService);
@@ -141,6 +136,7 @@ class OAuth2ControllerTest {
     @Test
     void authorizeJson_returnsBadRequest_forInvalidRedirectUri() throws Exception {
         when(authorizationService.authorize(
+                any(),
                 any(),
                 eq("code"),
                 eq("web-app-prod"),
@@ -166,10 +162,7 @@ class OAuth2ControllerTest {
                 }
                 """;
 
-        mockMvc.perform(post("/oauth2/authorize")
-                        .header("Authorization", "Bearer test-token")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body))
+        performAuthorize(body)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("redirect_uri is not allowed for this client"));
     }
@@ -177,6 +170,7 @@ class OAuth2ControllerTest {
     @Test
     void authorizeJson_returnsBadRequest_forUnsupportedResponseType() throws Exception {
         when(authorizationService.authorize(
+                any(),
                 any(),
                 eq("token"),
                 eq("web-app-prod"),
@@ -202,11 +196,15 @@ class OAuth2ControllerTest {
                 }
                 """;
 
-        mockMvc.perform(post("/oauth2/authorize")
-                        .header("Authorization", "Bearer test-token")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body))
+                performAuthorize(body)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Unsupported response_type"));
     }
+
+        private org.springframework.test.web.servlet.ResultActions performAuthorize(String body) throws Exception {
+                return mockMvc.perform(post("/oauth2/authorize")
+                                .header("Authorization", AUTHORIZATION_HEADER)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(body));
+        }
 }

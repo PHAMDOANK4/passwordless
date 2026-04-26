@@ -48,7 +48,6 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
 @Service
@@ -81,6 +80,7 @@ public class AuthOrchestratorService {
         }
 
         Domain domain = resolveDomainForEmail(email);
+        ensureLocalAuthAllowed(domain, "registration");
 
         User user = new User();
         user.setEmail(email);
@@ -173,8 +173,10 @@ public class AuthOrchestratorService {
             throws SendOtpException, FrequentSendingForbidden, InvalidAuthTransactionException {
         String identifier = request.getIdentifier().trim().toLowerCase();
 
-        User user = userRepository.findByEmail(identifier)
+        User user = userRepository.findByEmailWithDomain(identifier)
                 .orElseThrow(() -> new InvalidAuthTransactionException("User is not registered"));
+
+        ensureLocalAuthAllowed(user.getDomain(), "login");
 
         if (user.isLocked()) {
             throw new InvalidAuthTransactionException("Account is temporarily locked due to too many failed attempts");
@@ -528,6 +530,12 @@ public class AuthOrchestratorService {
                     domain.setActive(true);
                     return domainRepository.save(domain);
                 });
+    }
+
+    private void ensureLocalAuthAllowed(Domain domain, String action) throws InvalidAuthTransactionException {
+        if (domain != null && domain.isSsoEnabled()) {
+            throw new InvalidAuthTransactionException("This domain requires SSO and does not allow local " + action);
+        }
     }
 
     private User.MfaMethod toUserMfaMethod(AuthMethod authMethod) {

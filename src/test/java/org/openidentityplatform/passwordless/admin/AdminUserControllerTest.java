@@ -9,6 +9,7 @@ import org.openidentityplatform.passwordless.iam.repositories.UserRepository;
 import org.openidentityplatform.passwordless.oauth2.models.AuthorizationCode;
 import org.openidentityplatform.passwordless.oauth2.models.Session;
 import org.openidentityplatform.passwordless.oauth2.models.Token;
+import org.openidentityplatform.passwordless.oauth2.repositories.OAuthClientRepository;
 import org.openidentityplatform.passwordless.oauth2.repositories.AuthorizationCodeRepository;
 import org.openidentityplatform.passwordless.oauth2.repositories.SessionRepository;
 import org.openidentityplatform.passwordless.oauth2.repositories.TokenRepository;
@@ -62,6 +63,9 @@ class AdminUserControllerTest {
     @Autowired
     private AuthorizationCodeRepository authorizationCodeRepository;
 
+    @Autowired
+    private OAuthClientRepository oAuthClientRepository;
+
     @BeforeEach
     void cleanData() {
       tokenRepository.deleteAll();
@@ -70,6 +74,7 @@ class AdminUserControllerTest {
         registeredTotpRepository.deleteAll();
         userAuthenticatorJPARepository.deleteAll();
         userRepository.deleteAll();
+        oAuthClientRepository.deleteAll();
         domainRepository.deleteAll();
     }
 

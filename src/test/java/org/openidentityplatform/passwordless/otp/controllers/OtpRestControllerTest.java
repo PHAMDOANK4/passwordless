@@ -17,8 +17,6 @@
 package org.openidentityplatform.passwordless.otp.controllers;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mockito;
 import org.openidentityplatform.passwordless.otp.models.SendOtpResult;
 import org.openidentityplatform.passwordless.otp.models.VerifyOtpResult;
 import org.openidentityplatform.passwordless.otp.services.FrequentSendingForbidden;
@@ -32,25 +30,21 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
-import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.result.MockMvcResultHandlers;
 
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@ExtendWith(SpringExtension.class)
-@WebAppConfiguration
 @WebMvcTest(value = OtpRestController.class, properties = "security.api-key-filter.enabled=false")
 @AutoConfigureMockMvc(addFilters = false)
-public class OtpRestControllerTest {
+class OtpRestControllerTest {
 
     @Autowired
     private MockMvc mvc;
@@ -58,46 +52,45 @@ public class OtpRestControllerTest {
     @MockBean
     private OtpService otpService;
 
-    final static String sessionId = UUID.randomUUID().toString();
-    final static String destination = "+7999999999";
-    final static Long resendAllowedAt = System.currentTimeMillis() + 5 * 1000 * 60;
-    final static Integer remainingAttempts = 5;
-    final static String SEND_REQUEST_BODY = """
+    private static final String SESSION_ID = UUID.randomUUID().toString();
+    private static final String DESTINATION = "+7999999999";
+    private static final Long RESEND_ALLOWED_AT = System.currentTimeMillis() + 5 * 1000 * 60;
+    private static final Integer REMAINING_ATTEMPTS = 5;
+    private static final String SEND_REQUEST_BODY = """
             {
                 "destination": "+7999999999",
                 "sender": "sms"
             }
             """;
 
-    final static String VERIFY_OTP_REQUEST_BODY = """
+    private static final String VERIFY_OTP_REQUEST_BODY = """
             {
                 "sessionId": "%s",
                 "otp": "123456"
             }
-            """.formatted(sessionId);
+            """.formatted(SESSION_ID);
 
     @Test
-    void testSend() throws Exception {
-
-        Mockito.when(otpService.send(anyString(), anyString())).thenReturn(
-                new SendOtpResult(sessionId, destination, resendAllowedAt, remainingAttempts)
+    void send_returnsSessionDetails() throws Exception {
+        when(otpService.send(anyString(), anyString())).thenReturn(
+                new SendOtpResult(SESSION_ID, DESTINATION, RESEND_ALLOWED_AT, REMAINING_ATTEMPTS)
         );
+
         mvc.perform(post("/otp/v1/send")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(SEND_REQUEST_BODY))
-                .andDo(MockMvcResultHandlers.print())
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.sessionId").value(sessionId))
-                .andExpect(jsonPath("$.destination").value(destination))
-                .andExpect(jsonPath("$.resendAllowedAt").value(resendAllowedAt))
-                .andExpect(jsonPath("$.remainingAttempts").value(remainingAttempts));
-
+                .andExpect(jsonPath("$.sessionId").value(SESSION_ID))
+                .andExpect(jsonPath("$.destination").value(DESTINATION))
+                .andExpect(jsonPath("$.resendAllowedAt").value(RESEND_ALLOWED_AT))
+                .andExpect(jsonPath("$.remainingAttempts").value(REMAINING_ATTEMPTS));
     }
 
     @Test
-    void testSend_SenderNotFound() throws Exception {
-        Mockito.when(otpService.send(anyString(), anyString()))
+    void send_returnsNotFoundWhenSenderIsMissing() throws Exception {
+        when(otpService.send(anyString(), anyString()))
                 .thenThrow(new SenderNotFoundException());
+
         mvc.perform(post("/otp/v1/send")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(SEND_REQUEST_BODY))
@@ -105,20 +98,18 @@ public class OtpRestControllerTest {
     }
 
     @Test
-    void testSend_TemplateNotFound() throws Exception {
-
-        Mockito.when(otpService.send(anyString(), anyString()))
+    void send_returnsNotFoundWhenTemplateIsMissing() throws Exception {
+        when(otpService.send(anyString(), anyString()))
                 .thenThrow(new TemplateNotFoundException());
+
         mvc.perform(post("/otp/v1/send")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(SEND_REQUEST_BODY))
-                .andDo(MockMvcResultHandlers.print())
                 .andExpect(status().isNotFound());
-
     }
 
     @Test
-    void testSend_InvalidData() throws Exception {
+    void send_returnsBadRequestForInvalidPayload() throws Exception {
 
         String requestBody = """
                 {
@@ -130,40 +121,36 @@ public class OtpRestControllerTest {
         mvc.perform(post("/otp/v1/send")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
-                .andDo(MockMvcResultHandlers.print())
                 .andExpect(status().isBadRequest());
     }
 
     @Test
-    void testSend_frequentForbidden() throws Exception {
-        Mockito.when(otpService.send(anyString(), anyString()))
+        void send_returnsBadRequestWhenRateLimited() throws Exception {
+                when(otpService.send(anyString(), anyString()))
                 .thenThrow(new FrequentSendingForbidden());
+
         mvc.perform(post("/otp/v1/send")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(SEND_REQUEST_BODY))
-                .andDo(MockMvcResultHandlers.print())
                 .andExpect(status().isBadRequest());
     }
 
 
     @Test
-    void testVerify() throws Exception {
-
-
-        Mockito.when(otpService.verify(anyString(), anyString()))
+        void verify_returnsValidResult() throws Exception {
+                when(otpService.verify(anyString(), anyString()))
                 .thenReturn(new VerifyOtpResult(true, null));
 
         mvc.perform(post("/otp/v1/verify")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(VERIFY_OTP_REQUEST_BODY))
-                .andDo(MockMvcResultHandlers.print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.valid", is(true)));
     }
 
     @Test
-    void testVerify_SessionNotFound() throws Exception {
-        Mockito.when(otpService.verify(anyString(), anyString()))
+        void verify_returnsNotFoundWhenSessionIsMissing() throws Exception {
+                when(otpService.verify(anyString(), anyString()))
                 .thenThrow(new SessionNotFoundException());
 
         mvc.perform(post("/otp/v1/verify")
@@ -174,9 +161,10 @@ public class OtpRestControllerTest {
     }
 
     @Test
-    void testVerify_attemptsExceeded() throws Exception {
-        Mockito.when(otpService.verify(anyString(), anyString()))
+        void verify_returnsBadRequestWhenAttemptsAreExceeded() throws Exception {
+                when(otpService.verify(anyString(), anyString()))
                 .thenThrow(new OtpVerifyAttemptsExceeded());
+
         mvc.perform(post("/otp/v1/verify")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(VERIFY_OTP_REQUEST_BODY))

@@ -4,11 +4,16 @@ server:
       cookie:
         same-site: lax
 
+security:
+  relaxed-mode: true
+
 spring:
   data:
     redis:
       host: localhost
       port: 6379
+      repositories:
+        enabled: false
 
   mail:
     host: localhost
@@ -123,3 +128,23 @@ springdoc:
   show-actuator: true
   default-consumes-media-type: application/json
   default-produces-media-type: application/json
+
+oauth2:
+  seed:
+    enabled: true
+    domain-name: default.com
+    web-client-id: web-pkce-client
+    web-redirect-uri: http://localhost:3000/callback
+    service-client-id: service-client
+    service-client-secret: ${OAUTH2_SERVICE_CLIENT_SECRET:}
+
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus

@@ -1,8 +1,11 @@
 package org.openidentityplatform.passwordless.auth.controllers;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
+import org.openidentityplatform.passwordless.auth.configuration.AuthProperties;
+import org.openidentityplatform.passwordless.auth.configuration.AuthSessionCookie;
 import org.openidentityplatform.passwordless.auth.models.AuthLoginRequest;
 import org.openidentityplatform.passwordless.auth.models.AuthLoginResponse;
 import org.openidentityplatform.passwordless.auth.models.AuthMfaPreferenceResponse;
@@ -20,6 +23,7 @@ import org.openidentityplatform.passwordless.otp.services.FrequentSendingForbidd
 import org.openidentityplatform.passwordless.otp.services.OtpVerifyAttemptsExceeded;
 import org.openidentityplatform.passwordless.otp.services.SendOtpException;
 import org.openidentityplatform.passwordless.totp.services.UserNotFoundException;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,6 +43,7 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthOrchestratorService authOrchestratorService;
+    private final AuthProperties authProperties;
 
     @PostMapping("/register")
     public ResponseEntity<AuthRegisterResponse> register(@RequestBody @Valid AuthRegisterRequest request)
@@ -53,9 +58,24 @@ public class AuthController {
     }
 
     @PostMapping("/mfa/verify")
-    public AuthVerifyResponse verify(@RequestBody @Valid AuthVerifyRequest request, HttpServletRequest httpRequest)
+        public AuthVerifyResponse verify(
+            @RequestBody @Valid AuthVerifyRequest request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse
+        )
             throws InvalidAuthTransactionException, OtpVerifyAttemptsExceeded, UserNotFoundException {
-        return authOrchestratorService.verify(request, httpRequest);
+        AuthVerifyResponse response = authOrchestratorService.verify(request, httpRequest);
+
+        ResponseCookie idpSessionCookie = ResponseCookie.from(AuthSessionCookie.NAME, response.getSessionId())
+            .httpOnly(true)
+            .secure(httpRequest.isSecure())
+            .path("/")
+            .sameSite("Lax")
+            .maxAge(authProperties.getSessionTtlSeconds())
+            .build();
+        httpResponse.addHeader("Set-Cookie", idpSessionCookie.toString());
+
+        return response;
     }
 
     @PostMapping("/mfa/totp/register")
@@ -94,9 +114,24 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public Map<String, String> logout(@RequestHeader(value = "Authorization", required = false) String authorization)
+    public Map<String, String> logout(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse
+    )
             throws InvalidAuthTransactionException {
-        return authOrchestratorService.logout(authorization);
+        Map<String, String> response = authOrchestratorService.logout(authorization);
+
+        ResponseCookie expiredCookie = ResponseCookie.from(AuthSessionCookie.NAME, "")
+                .httpOnly(true)
+                .secure(httpRequest.isSecure())
+                .path("/")
+                .sameSite("Lax")
+                .maxAge(0)
+                .build();
+        httpResponse.addHeader("Set-Cookie", expiredCookie.toString());
+
+        return response;
     }
 
     @GetMapping("/sessions")

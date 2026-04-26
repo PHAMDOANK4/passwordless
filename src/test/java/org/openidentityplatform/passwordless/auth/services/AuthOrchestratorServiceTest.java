@@ -102,7 +102,7 @@ class AuthOrchestratorServiceTest {
         AuthLoginRequest request = new AuthLoginRequest();
         request.setIdentifier("missing@example.com");
 
-        when(userRepository.findByEmail("missing@example.com")).thenReturn(Optional.empty());
+        when(userRepository.findByEmailWithDomain("missing@example.com")).thenReturn(Optional.empty());
 
         InvalidAuthTransactionException ex = assertThrows(
                 InvalidAuthTransactionException.class,
@@ -119,7 +119,7 @@ class AuthOrchestratorServiceTest {
         request.setPreferredMethod(AuthMethod.TOTP);
 
         User user = activeUser("john@example.com");
-        when(userRepository.findByEmail("john@example.com")).thenReturn(Optional.of(user));
+        when(userRepository.findByEmailWithDomain("john@example.com")).thenReturn(Optional.of(user));
         when(userAuthenticatorRepository.load("john@example.com")).thenReturn(Collections.emptySet());
         when(registeredTotpRepository.findByUsername("john@example.com")).thenReturn(Optional.empty());
 
@@ -138,7 +138,7 @@ class AuthOrchestratorServiceTest {
         request.setPreferredMethod(AuthMethod.WEBAUTHN);
 
         User user = activeUser("john@example.com");
-        when(userRepository.findByEmail("john@example.com")).thenReturn(Optional.of(user));
+        when(userRepository.findByEmailWithDomain("john@example.com")).thenReturn(Optional.of(user));
         when(userAuthenticatorRepository.load("john@example.com")).thenReturn(Collections.emptySet());
         when(registeredTotpRepository.findByUsername("john@example.com")).thenReturn(Optional.empty());
 
@@ -151,6 +151,28 @@ class AuthOrchestratorServiceTest {
     }
 
     @Test
+    void login_rejectsLocalAuthWhenDomainRequiresSso() {
+        AuthLoginRequest request = new AuthLoginRequest();
+        request.setIdentifier("sso-user@acme.com");
+
+        Domain domain = new Domain();
+        domain.setDomainName("acme.com");
+        domain.setSsoEnabled(true);
+
+        User user = activeUser("sso-user@acme.com");
+        user.setDomain(domain);
+
+        when(userRepository.findByEmailWithDomain("sso-user@acme.com")).thenReturn(Optional.of(user));
+
+        InvalidAuthTransactionException ex = assertThrows(
+                InvalidAuthTransactionException.class,
+                () -> service.login(request, httpServletRequest)
+        );
+
+        assertEquals("This domain requires SSO and does not allow local login", ex.getMessage());
+    }
+
+    @Test
     void login_withPreferredOtp_sendsEmailOtp() throws Exception {
         AuthLoginRequest request = new AuthLoginRequest();
         request.setIdentifier("john@example.com");
@@ -160,7 +182,7 @@ class AuthOrchestratorServiceTest {
         when(httpServletRequest.getHeader("User-Agent")).thenReturn("JUnit");
 
         User user = activeUser("john@example.com");
-        when(userRepository.findByEmail("john@example.com")).thenReturn(Optional.of(user));
+        when(userRepository.findByEmailWithDomain("john@example.com")).thenReturn(Optional.of(user));
         when(userAuthenticatorRepository.load("john@example.com")).thenReturn(Collections.emptySet());
         when(registeredTotpRepository.findByUsername("john@example.com")).thenReturn(Optional.empty());
 
@@ -237,6 +259,29 @@ class AuthOrchestratorServiceTest {
         assertEquals("acme.com", response.getDomain());
         assertEquals("EMAIL", response.getPreferredMfaMethod());
         assertTrue(response.isMfaEnabled());
+    }
+
+    @Test
+    void register_rejectsLocalAuthWhenDomainRequiresSso() {
+        AuthRegisterRequest request = new AuthRegisterRequest();
+        request.setEmail("new.user@acme.com");
+        request.setFirstName("New");
+        request.setLastName("User");
+
+        Domain domain = new Domain();
+        domain.setId("dom-1");
+        domain.setDomainName("acme.com");
+        domain.setSsoEnabled(true);
+
+        when(userRepository.existsByEmail("new.user@acme.com")).thenReturn(false);
+        when(domainRepository.findByDomainName("acme.com")).thenReturn(Optional.of(domain));
+
+        InvalidAuthTransactionException ex = assertThrows(
+                InvalidAuthTransactionException.class,
+                () -> service.register(request)
+        );
+
+        assertEquals("This domain requires SSO and does not allow local registration", ex.getMessage());
     }
 
     private User activeUser(String email) {

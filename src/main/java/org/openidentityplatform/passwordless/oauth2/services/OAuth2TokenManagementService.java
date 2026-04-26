@@ -38,7 +38,7 @@ public class OAuth2TokenManagementService {
             throw new OAuth2FlowException("token is required");
         }
 
-        validateClient(formParams.get("client_id"), formParams.get("client_secret"));
+        validateClient(formParams.get("client_id"), formParams.get("client_secret"), false);
 
         if ("access_token".equals(tokenTypeHint)) {
             return introspectAccessToken(token);
@@ -63,7 +63,7 @@ public class OAuth2TokenManagementService {
             throw new OAuth2FlowException("token is required");
         }
 
-        validateClient(formParams.get("client_id"), formParams.get("client_secret"));
+        validateClient(formParams.get("client_id"), formParams.get("client_secret"), false);
 
         if ("access_token".equals(tokenTypeHint)) {
             revokeAccessToken(token);
@@ -89,7 +89,7 @@ public class OAuth2TokenManagementService {
 
         Optional<Token> tokenRecordOpt = tokenRepository.findByTokenValueAndNotRevoked(rawToken);
         if (tokenRecordOpt.isEmpty()) {
-            return inactiveResponse();
+            return introspectStatelessClientCredentialsToken(claims);
         }
 
         Token tokenRecord = tokenRecordOpt.get();
@@ -129,6 +129,45 @@ public class OAuth2TokenManagementService {
             response.put("sid", sessionId);
         }
 
+        return response;
+    }
+
+    private Map<String, Object> introspectStatelessClientCredentialsToken(JWTClaimsSet claims) {
+        String grantType = claimAsString(claims.getClaim("grant_type"));
+        if (!"client_credentials".equals(grantType)) {
+            return inactiveResponse();
+        }
+
+        String clientId = claimAsString(claims.getClaim("client_id"));
+        if (clientId == null || clientId.isBlank()) {
+            return inactiveResponse();
+        }
+
+        boolean activeClient = oAuthClientRepository.findByClientId(clientId)
+                .map(OAuthClient::isActive)
+                .orElse(false);
+        if (!activeClient) {
+            return inactiveResponse();
+        }
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("active", true);
+        response.put("token_type", "access_token");
+        response.put("scope", claimAsString(claims.getClaim("scope")));
+        response.put("client_id", clientId);
+        response.put("sub", claims.getSubject());
+        if (claims.getExpirationTime() != null) {
+            response.put("exp", claims.getExpirationTime().toInstant().getEpochSecond());
+        }
+        if (claims.getIssueTime() != null) {
+            response.put("iat", claims.getIssueTime().toInstant().getEpochSecond());
+        }
+        if (claims.getIssuer() != null) {
+            response.put("iss", claims.getIssuer());
+        }
+        if (claims.getAudience() != null && !claims.getAudience().isEmpty()) {
+            response.put("aud", claims.getAudience());
+        }
         return response;
     }
 
@@ -201,7 +240,8 @@ public class OAuth2TokenManagementService {
         });
     }
 
-    private OAuthClient validateClient(String clientId, String clientSecret) throws OAuth2FlowException {
+    private OAuthClient validateClient(String clientId, String clientSecret, boolean allowPublicClientWithoutSecret)
+            throws OAuth2FlowException {
         if (clientId == null || clientId.isBlank()) {
             throw new OAuth2FlowException("client_id is required");
         }
@@ -210,7 +250,7 @@ public class OAuth2TokenManagementService {
                 .filter(OAuthClient::isActive)
                 .orElseThrow(() -> new OAuth2FlowException("Invalid client_id"));
 
-        boolean allowPublicClient = client.isRequirePkce();
+        boolean allowPublicClient = allowPublicClientWithoutSecret && client.isRequirePkce();
         if (allowPublicClient && (clientSecret == null || clientSecret.isBlank())) {
             return client;
         }
