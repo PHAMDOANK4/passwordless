@@ -25,8 +25,8 @@ This IdP acts as a centralized OAuth2/OIDC Provider for web apps, mobile apps, a
 ## 2. Flow Diagrams
 
 ### 2.1 Authorization Code + PKCE
-1. Client redirects user to `/oauth2/authorize` with `response_type=code`, `client_id`, `redirect_uri`, `scope`, `state`, `code_challenge`, `code_challenge_method=S256`, `nonce`.
-2. IdP validates client, redirect URI, scope, PKCE, state/nonce requirements.
+1. Client redirects user in the browser to `GET /oauth2/authorize` with `response_type=code`, `client_id`, `redirect_uri`, `scope`, `state`, `code_challenge`, `code_challenge_method=S256`, `nonce`.
+2. IdP validates client, redirect URI, scope, PKCE, state/nonce requirements and relies on the existing IdP session cookie when the user is already signed in.
 3. IdP issues short-lived authorization code.
 4. Client exchanges code at `/oauth2/token` with `grant_type=authorization_code` and `code_verifier`.
 5. IdP returns `access_token`, `refresh_token`, `id_token`.
@@ -41,6 +41,12 @@ This IdP acts as a centralized OAuth2/OIDC Provider for web apps, mobile apps, a
 1. Service client calls `/oauth2/token` with `grant_type=client_credentials`, `client_id`, `client_secret`, optional `scope`.
 2. IdP validates confidential client and allowed scopes.
 3. IdP returns short-lived `access_token` JWT.
+
+### 2.4 Logout and Session Revocation
+1. Client or portal calls `POST /oauth2/revoke` to invalidate a refresh token or access token that should no longer be used.
+2. Application logout can also call `POST /auth/sessions/{sessionId}/revoke` for a single session or `POST /auth/sessions/revoke-all` for all sessions of the current user.
+3. If OIDC RP-initiated logout is enabled, the browser can be redirected to `GET /oauth2/logout?id_token_hint=...&post_logout_redirect_uri=...`.
+4. Revoking a token stops token reuse, while ending the IdP session removes the browser sign-in state that powers SSO and future authorization requests.
 
 ## 3. Data Model Mapping
 
@@ -63,7 +69,13 @@ This IdP acts as a centralized OAuth2/OIDC Provider for web apps, mobile apps, a
 - `POST /oauth2/token`
 - `POST /oauth2/introspect`
 - `POST /oauth2/revoke`
+- `GET /oauth2/logout`
 - `GET /oauth2/userinfo`
+
+### Session Management
+- `GET /auth/sessions`
+- `POST /auth/sessions/{sessionId}/revoke`
+- `POST /auth/sessions/revoke-all`
 
 ### Token Endpoint Grants
 - `authorization_code`
@@ -81,6 +93,7 @@ This IdP acts as a centralized OAuth2/OIDC Provider for web apps, mobile apps, a
 - Session-aware token validation (sid claim)
 - Token revocation via denylist + persistent revoke flag
 - Refresh token rotation
+- Browser logout support via IdP session revocation and optional RP-initiated logout endpoint
 - Actuator health probes for ops readiness/liveness
 
 ## 6. Production Hardening Checklist

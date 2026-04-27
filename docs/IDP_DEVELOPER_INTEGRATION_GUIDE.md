@@ -37,8 +37,9 @@ Một số đường dẫn chính:
 - `POST /auth/mfa/totp/register` - tạo TOTP enrollment
 - `POST /auth/mfa/totp/activate` - kích hoạt TOTP
 - `POST /auth/mfa/email/activate` - bật Email OTP làm MFA ưu tiên
-- `POST /oauth2/authorize` - xin authorization code
+- `GET|POST /oauth2/authorize` - xin authorization code
 - `POST /oauth2/token` - đổi code hoặc refresh token lấy token mới
+- `POST /oauth2/revoke` - thu hồi refresh token hoặc token theo chuẩn OAuth2
 - `GET /oauth2/userinfo` - lấy thông tin user từ access token
 
 ## 3. Luồng Tích Hợp Khuyến Nghị
@@ -167,22 +168,18 @@ Các giá trị cần có:
 
 ### 4.2 Xin authorization code
 
-Người dùng đã đăng nhập bằng token IdP có thể được chuyển sang endpoint authorize:
+Người dùng nên được redirect bằng trình duyệt đến authorize URL thực tế:
 
-```bash
-curl -X POST https://passwordless.actvn/oauth2/authorize \
-  -H "Authorization: Bearer <USER_ACCESS_TOKEN>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "responseType": "code",
-    "clientId": "web-pkce-client",
-    "redirectUri": "https://myapp.example.com/callback",
-    "scope": "openid profile email",
-    "state": "state-123",
-    "codeChallenge": "<pkce-challenge>",
-    "codeChallengeMethod": "S256",
-    "nonce": "nonce-123"
-  }'
+```text
+https://passwordless.actvn/oauth2/authorize?response_type=code&client_id=web-pkce-client&redirect_uri=https%3A%2F%2Fmyapp.example.com%2Fcallback&scope=openid%20profile%20email&state=state-123&code_challenge=<pkce-challenge>&code_challenge_method=S256&nonce=nonce-123
+```
+
+Endpoint `/oauth2/authorize` hỗ trợ cả `GET` và `POST`, nhưng với web app/SPA nên dùng `GET` + session cookie của IdP.
+
+Ví dụ frontend:
+
+```js
+window.location.href = 'https://passwordless.actvn/oauth2/authorize?response_type=code&client_id=web-pkce-client&redirect_uri=https%3A%2F%2Fmyapp.example.com%2Fcallback&scope=openid%20profile%20email&state=state-123&code_challenge=<pkce-challenge>&code_challenge_method=S256&nonce=nonce-123';
 ```
 
 ### 4.3 Đổi code lấy token
@@ -196,6 +193,36 @@ curl -X POST https://passwordless.actvn/oauth2/token \
   --data-urlencode "redirect_uri=https://myapp.example.com/callback" \
   --data-urlencode "code_verifier=<PKCE_VERIFIER>"
 ```
+
+Lưu ý: nếu ứng dụng của bạn là public client như SPA hoặc mobile app, không được đặt `clientSecret` trong frontend. Khi đó phải dùng PKCE và chỉ dùng `client_id` công khai.
+
+### 4.4 Phân biệt token trực tiếp và OAuth2 Authorization Code
+
+| Trường hợp | Cơ chế phù hợp | Ghi chú |
+| --- | --- | --- |
+| Portal nội bộ, UI do bạn kiểm soát hoàn toàn | Token trực tiếp từ `POST /auth/mfa/verify` | Dùng khi bạn muốn IdP trả token ngay sau bước MFA để giảm số bước tích hợp. |
+| Web app, SPA, mobile, ứng dụng bên thứ ba | OAuth2 Authorization Code + PKCE | Đây là luồng chuẩn cho SSO, tránh lộ secret và hỗ trợ tích hợp đa ứng dụng. |
+| Backend service | `client_credentials` | Không dùng user session. |
+
+### 4.5 Logout và thu hồi session
+
+Khi user đăng xuất khỏi ứng dụng, nên thực hiện cả thu hồi token lẫn kết thúc session:
+
+1. Gọi `POST /oauth2/revoke` để thu hồi refresh token hoặc access token cần vô hiệu hóa.
+2. Gọi `POST /auth/sessions/{sessionId}/revoke` nếu muốn logout một phiên cụ thể.
+3. Gọi `POST /auth/sessions/revoke-all` nếu muốn logout toàn bộ thiết bị hoặc toàn bộ phiên của user.
+
+Nếu triển khai OIDC RP-initiated logout, có thể redirect user tới:
+
+```text
+GET /oauth2/logout?id_token_hint=<ID_TOKEN>&post_logout_redirect_uri=https%3A%2F%2Fmyapp.example.com%2Flogged-out
+```
+
+Phân biệt:
+
+- Thu hồi token: chặn token đã phát hành, thường áp dụng cho refresh token để ngăn lấy access token mới.
+- Kết thúc session IdP: ngắt trạng thái đăng nhập ở IdP, tác động tới SSO và các ứng dụng khác cùng phiên.
+- Nếu chỉ thu hồi token mà không kết thúc session, user vẫn có thể còn đăng nhập ở IdP trong trình duyệt hiện tại.
 
 ## 5. Gọi API Từ Ứng Dụng Của Bạn
 
@@ -317,6 +344,6 @@ Khi phát triển local, thứ tự kiểm tra nhanh là:
 2. `POST /auth/login`
 3. `POST /auth/mfa/verify`
 4. `GET /oauth2/userinfo`
-5. `POST /oauth2/authorize` và `POST /oauth2/token`
+5. `GET|POST /oauth2/authorize` và `POST /oauth2/token`
 
 Nếu bước login trả lỗi, hãy kiểm tra payload gửi lên phải chứa `identifier`, `preferredMethod`, và `clientId`.
