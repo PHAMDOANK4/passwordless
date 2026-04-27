@@ -1,15 +1,20 @@
 {
   "name": "frontend",
   "version": "1.0.0",
-  "description": "",
-  "source": "src/passwordless-sdk.ts",
-  "main": "dist/passwordless-sdk.js",
-  "module": "dist/module.js",
-  "types": "dist/types.d.ts",
+  "description": "IdP Portal UI",
+  "source": "index.html",
   "scripts": {
-    "build": "parcel build"
+    "dev": "parcel index.html",
+    "build": "parcel build index.html --no-cache --public-url ./"
   },
   "license": "Apache-2.0",
+  "dependencies": {
+    "chart.js": "^4.4.3",
+    "react": "^18.3.1",
+    "react-chartjs-2": "^5.2.0",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.2"
+  },
   "devDependencies": {
     "@parcel/packager-ts": "2.6.2",
     "@parcel/transformer-typescript-types": "2.6.2",

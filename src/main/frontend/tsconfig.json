@@ -1,12 +1,16 @@
 {
     "compilerOptions": {
-        "module": "commonjs",
+        "module": "esnext",
         "esModuleInterop": true,
-        "target": "es6",
+        "target": "es2020",
         "moduleResolution": "node",
         "sourceMap": true,
-        "declaration": true,
-        "outDir": "dist"        
+        "jsx": "react-jsx",
+        "skipLibCheck": true,
+        "resolveJsonModule": true,
+        "isolatedModules": true,
+        "noEmit": true,
+        "types": ["node"]
     },
     "exclude": [
         "node_modules",
@@ -16,7 +20,5 @@
         "src",
         "./src/**/*"
     ],
-    "lib": [
-        "es2015"
-    ]
+    "lib": ["DOM", "DOM.Iterable", "ES2020"]
 }

@@ -8,6 +8,6 @@ public class AdminPageController {
 
     @GetMapping({"/admin", "/admin/"})
     public String adminIndex() {
-        return "redirect:/admin/index.html";
+        return "redirect:/admin/dashboard";
     }
 }
