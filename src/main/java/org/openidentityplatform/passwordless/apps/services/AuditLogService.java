@@ -92,6 +92,31 @@ public class AuditLogService {
         }
     }
     
+    /**
+     * Logs an admin action with full user identity and action details.
+     * Used by the {@code AdminAuditAspect} to automatically record all admin API operations.
+     */
+    @Async
+    public void logAdminAction(String userId, String userEmail, String action,
+                               String endpoint, String httpMethod, String ipAddress,
+                               String details) {
+        try {
+            AuditLog auditLog = new AuditLog();
+            auditLog.setUserEmail(userEmail);
+            auditLog.setEventType("ADMIN_ACTION");
+            auditLog.setEndpoint(endpoint);
+            auditLog.setHttpMethod(httpMethod);
+            auditLog.setIpAddress(ipAddress);
+            auditLog.setSuccess(true);
+            auditLog.setDetails(details);
+            
+            auditLogRepository.save(auditLog);
+            log.info("Admin action logged: user={}, action={}, endpoint={}", userEmail, action, endpoint);
+        } catch (Exception e) {
+            log.error("Failed to save admin audit log", e);
+        }
+    }
+    
     public Page<AuditLog> getAuditLogs(Pageable pageable) {
         return auditLogRepository.findAll(pageable);
     }

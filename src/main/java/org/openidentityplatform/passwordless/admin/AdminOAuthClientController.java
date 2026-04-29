@@ -114,6 +114,7 @@ public class AdminOAuthClientController {
     }
 
     @DeleteMapping("/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<?> deleteClient(@PathVariable String id) {
         try {
             clientManagementService.deleteClient(id);

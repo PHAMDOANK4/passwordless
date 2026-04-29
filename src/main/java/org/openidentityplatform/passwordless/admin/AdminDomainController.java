@@ -69,6 +69,7 @@ public class AdminDomainController {
     }
 
     @DeleteMapping("/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<?> deleteDomain(@PathVariable String id) {
         try {
             domainAdminService.deleteDomain(id);

@@ -253,6 +253,92 @@ public class OAuth2AuthorizationService {
         throw new OAuth2FlowException("Missing authenticated user context");
     }
 
+    /**
+     * Authorize using an already-resolved IdP session (for browser SSO redirect flow).
+     * Called after the user logs in and is redirected back to the authorize callback.
+     */
+    public String authorizeWithSession(Session session,
+                                       String responseType,
+                                       String clientId,
+                                       String redirectUri,
+                                       String scope,
+                                       String state,
+                                       String codeChallenge,
+                                       String codeChallengeMethod,
+                                       String nonce,
+                                       HttpServletRequest request) throws OAuth2FlowException {
+
+        if (!"code".equals(responseType)) {
+            throw new OAuth2FlowException("Unsupported response_type");
+        }
+        if (clientId == null || clientId.isBlank() || redirectUri == null || redirectUri.isBlank()) {
+            throw new OAuth2FlowException("client_id and redirect_uri are required");
+        }
+
+        OAuthClient client = oAuthClientRepository.findByClientId(clientId)
+                .filter(OAuthClient::isActive)
+                .orElseThrow(() -> new OAuth2FlowException("Invalid client"));
+
+        ensureGrantAllowed(client, "authorization_code");
+        validateRedirectUri(client, redirectUri);
+        String effectiveScope = validateScope(client, scope);
+
+        if (state == null || state.isBlank()) {
+            throw new OAuth2FlowException("state is required");
+        }
+        if (containsOpenIdScope(effectiveScope) && (nonce == null || nonce.isBlank())) {
+            throw new OAuth2FlowException("nonce is required when openid scope is requested");
+        }
+        if (client.isRequirePkce() && (codeChallenge == null || codeChallenge.isBlank())) {
+            throw new OAuth2FlowException("code_challenge is required for this client");
+        }
+        if (codeChallenge != null && !codeChallenge.isBlank()) {
+            String resolvedMethod = codeChallengeMethod == null || codeChallengeMethod.isBlank() ? "S256" : codeChallengeMethod;
+            if (!"S256".equalsIgnoreCase(resolvedMethod)) {
+                throw new OAuth2FlowException("code_challenge_method must be S256");
+            }
+        }
+
+        User user = userRepository.findById(session.getUser().getId())
+                .orElseThrow(() -> new OAuth2FlowException("Authenticated user not found"));
+
+        Session.AuthMethod sessionAuthMethod = session.getAuthMethod();
+        AuthorizationCode.AuthMethod method = switch (sessionAuthMethod == null ? Session.AuthMethod.OTP : sessionAuthMethod) {
+            case WEBAUTHN -> AuthorizationCode.AuthMethod.WEBAUTHN;
+            case TOTP -> AuthorizationCode.AuthMethod.TOTP;
+            default -> AuthorizationCode.AuthMethod.OTP;
+        };
+
+        AuthorizationCode authCode = new AuthorizationCode();
+        authCode.setCode(generateCode());
+        authCode.setUser(user);
+        authCode.setClientId(clientId);
+        authCode.setOauthClient(client);
+        authCode.setRedirectUri(redirectUri);
+        authCode.setScopes(effectiveScope);
+        authCode.setState(state);
+        authCode.setCodeChallenge(codeChallenge);
+        authCode.setCodeChallengeMethod(codeChallengeMethod == null || codeChallengeMethod.isBlank() ? "S256" : codeChallengeMethod);
+        authCode.setNonce(nonce);
+        authCode.setIpAddress(request.getRemoteAddr());
+        authCode.setUserAgent(request.getHeader("User-Agent"));
+        authCode.setAuthMethod(method);
+        authCode.setCreatedAt(Instant.now());
+        authCode.setExpiresAt(Instant.now().plusSeconds(600));
+        authCode.setUsed(false);
+        authorizationCodeRepository.save(authCode);
+
+        StringBuilder redirect = new StringBuilder(redirectUri)
+                .append(redirectUri.contains("?") ? "&" : "?")
+                .append("code=").append(urlEncode(authCode.getCode()));
+
+        if (state != null && !state.isBlank()) {
+            redirect.append("&state=").append(urlEncode(state));
+        }
+
+        return redirect.toString();
+    }
+
     private record ResolvedPrincipal(User user, AuthorizationCode.AuthMethod authMethod) {
     }
 }

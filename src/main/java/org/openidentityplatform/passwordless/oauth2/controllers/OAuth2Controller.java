@@ -7,17 +7,22 @@ import org.openidentityplatform.passwordless.auth.configuration.AuthSessionCooki
 import org.openidentityplatform.passwordless.oauth2.dto.OAuth2AuthorizeRequest;
 import org.openidentityplatform.passwordless.oauth2.dto.OAuth2AuthorizeResponse;
 import org.openidentityplatform.passwordless.oauth2.dto.OAuth2TokenResponse;
+import org.openidentityplatform.passwordless.oauth2.models.Session;
+import org.openidentityplatform.passwordless.oauth2.services.AuthorizationRequestCache;
+import org.openidentityplatform.passwordless.oauth2.services.ConsentService;
 import org.openidentityplatform.passwordless.oauth2.services.OAuth2AuthorizationService;
 import org.openidentityplatform.passwordless.oauth2.services.OAuth2FlowException;
 import org.openidentityplatform.passwordless.oauth2.services.OAuth2TokenManagementService;
 import org.openidentityplatform.passwordless.oauth2.services.OAuth2TokenService;
 import org.openidentityplatform.passwordless.oauth2.services.OAuth2UserInfoService;
+import org.openidentityplatform.passwordless.oauth2.services.SessionService;
 import org.openidentityplatform.passwordless.token.services.InvalidRefreshTokenException;
 import org.openidentityplatform.passwordless.token.services.JwtTokenService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -25,15 +30,16 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.CookieValue;
 
 import java.net.URI;
 import java.net.URLDecoder;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @AllArgsConstructor
@@ -45,7 +51,17 @@ public class OAuth2Controller {
     private final OAuth2TokenManagementService tokenManagementService;
     private final OAuth2UserInfoService userInfoService;
     private final JwtTokenService jwtTokenService;
+    private final SessionService sessionService;
+    private final AuthorizationRequestCache authorizationRequestCache;
+    private final ConsentService consentService;
 
+    /**
+     * Browser-based SSO authorize endpoint.
+     * <ul>
+     *   <li>If user has an active {@code IDP_SESSION} cookie → issue auth code immediately (SSO).</li>
+     *   <li>If not authenticated → cache request params → redirect to IdP login page.</li>
+     * </ul>
+     */
     @GetMapping("/authorize")
     public ResponseEntity<Void> authorize(
             @RequestParam("response_type") String responseType,
@@ -60,25 +76,91 @@ public class OAuth2Controller {
             @CookieValue(value = AuthSessionCookie.NAME, required = false) String sessionCookie,
             HttpServletRequest request
     ) throws OAuth2FlowException {
-        String redirect = authorizationService.authorize(
-                authorization,
-                sessionCookie,
-                responseType,
-                clientId,
-                redirectUri,
-                scope,
-                state,
-                codeChallenge,
-                codeChallengeMethod,
-                nonce,
-                request
-        );
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setLocation(URI.create(redirect));
-        return new ResponseEntity<>(headers, HttpStatus.FOUND);
+        // 1. Try to resolve an existing session from the IDP_SESSION cookie
+        Optional<Session> existingSession = resolveSession(sessionCookie);
+
+        if (existingSession.isPresent()) {
+            // SSO: user already logged in → check consent before issuing auth code
+            Session session = existingSession.get();
+            String userId = session.getUser().getId();
+
+            if (!consentService.hasConsent(userId, clientId, scope)) {
+                // No consent → cache request and redirect to consent page
+                String reqId = authorizationRequestCache.store(
+                        responseType, clientId, redirectUri, scope, state,
+                        codeChallenge, codeChallengeMethod, nonce);
+                String consentUrl = "/oauth2/consent?request_id=" + urlEncode(reqId);
+                return ResponseEntity.status(HttpStatus.FOUND)
+                        .header(HttpHeaders.LOCATION, consentUrl).build();
+            }
+
+            String redirect = authorizationService.authorizeWithSession(
+                    session, responseType, clientId, redirectUri,
+                    scope, state, codeChallenge, codeChallengeMethod, nonce, request);
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .header(HttpHeaders.LOCATION, redirect).build();
+        }
+
+        // 2. Also try Bearer token (API clients)
+        if (authorization != null && authorization.startsWith("Bearer ")) {
+            String redirect = authorizationService.authorize(
+                    authorization, null, responseType, clientId, redirectUri,
+                    scope, state, codeChallenge, codeChallengeMethod, nonce, request);
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .header(HttpHeaders.LOCATION, redirect).build();
+        }
+
+        // 3. Not authenticated → cache request → redirect to login page
+        String requestId = authorizationRequestCache.store(
+                responseType, clientId, redirectUri, scope, state,
+                codeChallenge, codeChallengeMethod, nonce);
+        String loginUrl = "/idp/index.html?oauth_request_id=" + urlEncode(requestId);
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .header(HttpHeaders.LOCATION, loginUrl).build();
     }
 
+    /**
+     * Callback endpoint after the user logs in via the IdP.
+     * Restores cached authorize parameters and issues the auth code.
+     */
+    @GetMapping("/authorize/callback")
+    public ResponseEntity<Void> authorizeCallback(
+            @RequestParam("oauth_request_id") String requestId,
+            @CookieValue(value = AuthSessionCookie.NAME, required = false) String sessionCookie,
+            HttpServletRequest request
+    ) throws OAuth2FlowException {
+
+        AuthorizationRequestCache.CachedAuthorizationRequest cached =
+                authorizationRequestCache.retrieve(requestId)
+                        .orElseThrow(() -> new OAuth2FlowException("Authorization request expired or not found"));
+
+        Session session = resolveSession(sessionCookie)
+                .orElseThrow(() -> new OAuth2FlowException("Login required. No active session found."));
+
+        // Check consent before issuing auth code
+        String userId = session.getUser().getId();
+        if (!consentService.hasConsent(userId, cached.getClientId(), cached.getScope())) {
+            // Redirect to consent page (request stays cached)
+            String consentUrl = "/oauth2/consent?request_id=" + urlEncode(requestId);
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .header(HttpHeaders.LOCATION, consentUrl).build();
+        }
+
+        String redirect = authorizationService.authorizeWithSession(
+                session, cached.getResponseType(), cached.getClientId(), cached.getRedirectUri(),
+                cached.getScope(), cached.getState(), cached.getCodeChallenge(),
+                cached.getCodeChallengeMethod(), cached.getNonce(), request);
+
+        authorizationRequestCache.remove(requestId);
+
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .header(HttpHeaders.LOCATION, redirect).build();
+    }
+
+    /**
+     * JSON-based authorize endpoint for API/SPA clients that already have a Bearer token.
+     */
     @PostMapping(value = "/authorize", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public OAuth2AuthorizeResponse authorizeJson(
             @RequestBody @Valid OAuth2AuthorizeRequest authorizeRequest,
@@ -88,7 +170,7 @@ public class OAuth2Controller {
     ) throws OAuth2FlowException {
         String redirect = authorizationService.authorize(
                 authorization,
-            sessionCookie,
+                sessionCookie,
                 authorizeRequest.getResponseType(),
                 authorizeRequest.getClientId(),
                 authorizeRequest.getRedirectUri(),
@@ -162,6 +244,17 @@ public class OAuth2Controller {
         return jwtTokenService.getJwks();
     }
 
+    // ---------------------------------------------------------------
+    // Internal helpers
+    // ---------------------------------------------------------------
+
+    private Optional<Session> resolveSession(String sessionCookie) {
+        if (sessionCookie == null || sessionCookie.isBlank()) {
+            return Optional.empty();
+        }
+        return sessionService.findActiveSession(sessionCookie);
+    }
+
     private String resolveIssuer(HttpServletRequest request) {
         String scheme = request.getHeader("X-Forwarded-Proto");
         if (scheme == null || scheme.isBlank()) {
@@ -191,5 +284,9 @@ public class OAuth2Controller {
                     values.put(key, value);
                 });
         return values;
+    }
+
+    private String urlEncode(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 }

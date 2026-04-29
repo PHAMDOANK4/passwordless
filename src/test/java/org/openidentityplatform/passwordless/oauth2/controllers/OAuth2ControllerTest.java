@@ -45,6 +45,15 @@ class OAuth2ControllerTest {
     @MockBean
     private JwtTokenService jwtTokenService;
 
+    @MockBean
+    private org.openidentityplatform.passwordless.oauth2.services.SessionService sessionService;
+
+    @MockBean
+    private org.openidentityplatform.passwordless.oauth2.services.AuthorizationRequestCache authorizationRequestCache;
+
+    @MockBean
+    private org.openidentityplatform.passwordless.oauth2.services.ConsentService consentService;
+
         private static final String AUTHORIZATION_HEADER = "Bearer test-token";
 
     @Test

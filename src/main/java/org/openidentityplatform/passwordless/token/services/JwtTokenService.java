@@ -12,35 +12,30 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.openidentityplatform.passwordless.iam.models.User;
 import org.openidentityplatform.passwordless.token.configuration.TokenProperties;
+import org.openidentityplatform.passwordless.token.models.SigningKey;
 import org.springframework.stereotype.Service;
 
-import java.nio.charset.StandardCharsets;
-import java.security.KeyFactory;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.security.interfaces.RSAPublicKey;
 import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * JWT token service using persisted RSA keys managed by {@link KeyManagementService}.
+ * Supports multiple keys via {@code kid} in the JWT header for seamless key rotation.
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class JwtTokenService {
 
-    private static final String KEY_ID = "local-dev-rs256";
-
     private final TokenProperties tokenProperties;
-
-    private volatile KeyPair keyPair;
+    private final KeyManagementService keyManagementService;
 
     public String issueAccessToken(User user, String clientId) {
         return issueAccessToken(user, clientId, null);
@@ -56,6 +51,7 @@ public class JwtTokenService {
                 .subject(user.getId())
                 .audience(tokenProperties.getAudience())
                 .claim("email", user.getEmail())
+                .claim("role", user.getRole().name())
                 .claim("client_id", clientId)
                 .claim("scope", "openid profile email")
                 .jwtID(jti)
@@ -98,6 +94,7 @@ public class JwtTokenService {
                 .subject(user.getId())
                 .audience(clientId)
                 .claim("email", user.getEmail())
+                .claim("role", user.getRole().name())
                 .claim("name", user.getDisplayName())
                 .claim("preferred_username", user.getEmail())
                 .claim("auth_time", now.getEpochSecond())
@@ -115,10 +112,25 @@ public class JwtTokenService {
         return tokenProperties.getAccessTokenLifetimeSeconds();
     }
 
+    /**
+     * Validates an access token. Extracts {@code kid} from the JWT header
+     * and looks up the corresponding public key from {@link KeyManagementService}.
+     */
     public JWTClaimsSet validateAccessToken(String token) {
         try {
             SignedJWT jwt = SignedJWT.parse(token);
-            RSAPublicKey publicKey = (RSAPublicKey) getKeyPair().getPublic();
+
+            // Resolve public key by kid from the JWT header
+            String kid = jwt.getHeader().getKeyID();
+            RSAPublicKey publicKey;
+            if (kid != null && !kid.isBlank()) {
+                publicKey = keyManagementService.getPublicKeyByKid(kid);
+            } else {
+                // Fallback for tokens issued before key management (active key)
+                SigningKey activeKey = keyManagementService.getActiveKey();
+                publicKey = keyManagementService.parsePublicKey(activeKey.getPublicKeyPem());
+            }
+
             boolean validSignature = jwt.verify(new RSASSAVerifier(publicKey));
             if (!validSignature) {
                 throw new IllegalArgumentException("Invalid access token signature");
@@ -136,74 +148,22 @@ public class JwtTokenService {
                 throw new IllegalArgumentException("Access token audience mismatch");
             }
             return claimsSet;
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
             throw new IllegalArgumentException("Invalid access token", e);
         }
     }
 
+    /**
+     * Returns a JWKS (JSON Web Key Set) containing all signing keys
+     * (ACTIVE + INACTIVE) so previously issued tokens remain verifiable.
+     */
     public Map<String, Object> getJwks() {
-        RSAPublicKey publicKey = (RSAPublicKey) getKeyPair().getPublic();
-        String n = Base64.getUrlEncoder().withoutPadding().encodeToString(stripUnsigned(publicKey.getModulus().toByteArray()));
-        String e = Base64.getUrlEncoder().withoutPadding().encodeToString(stripUnsigned(publicKey.getPublicExponent().toByteArray()));
-
-        Map<String, Object> key = Map.of(
-                "kty", "RSA",
-                "use", "sig",
-                "alg", "RS256",
-                "kid", KEY_ID,
-                "n", n,
-                "e", e
-        );
-
-        return Map.of("keys", List.of(key));
-    }
-
-    private String sign(JWTClaimsSet claimsSet) {
-        try {
-            RSAPrivateKey privateKey = (RSAPrivateKey) getKeyPair().getPrivate();
-            SignedJWT signedJWT = new SignedJWT(
-                    new JWSHeader.Builder(JWSAlgorithm.RS256)
-                            .type(JOSEObjectType.JWT)
-                            .keyID(KEY_ID)
-                            .build(),
-                    claimsSet
-            );
-            signedJWT.sign(new RSASSASigner(privateKey));
-            return signedJWT.serialize();
-        } catch (JOSEException e) {
-            throw new IllegalStateException("Unable to sign JWT", e);
-        }
-    }
-
-    private KeyPair getKeyPair() {
-        KeyPair local = keyPair;
-        if (local == null) {
-            synchronized (this) {
-                local = keyPair;
-                if (local == null) {
-                    keyPair = local = buildDeterministicKeyPair();
-                }
-            }
-        }
-        return local;
-    }
-
-    private KeyPair buildDeterministicKeyPair() {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] seed = digest.digest(tokenProperties.getSigningSecret().getBytes(StandardCharsets.UTF_8));
-            SecureRandom secureRandom = SecureRandom.getInstance("SHA1PRNG");
-            secureRandom.setSeed(seed);
-
-            KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA", KeyFactory.getInstance("RSA").getProvider());
-            generator.initialize(2048, secureRandom);
-            return generator.generateKeyPair();
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("Unable to initialize RSA keys", e);
-        } catch (Exception e) {
-            log.error("Error generating deterministic RSA keypair", e);
-            throw new IllegalStateException("Unable to initialize JWT signing keys", e);
-        }
+        List<Map<String, Object>> keys = keyManagementService.getAllPublicKeys().stream()
+                .map(keyManagementService::toJwk)
+                .toList();
+        return Map.of("keys", keys);
     }
 
     public String generateOpaqueRefreshToken() {
@@ -212,10 +172,30 @@ public class JwtTokenService {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
-    private byte[] stripUnsigned(byte[] bytes) {
-        if (bytes.length > 1 && bytes[0] == 0) {
-            return Arrays.copyOfRange(bytes, 1, bytes.length);
+    // ---------------------------------------------------------------
+    // Internal
+    // ---------------------------------------------------------------
+
+    /**
+     * Signs a JWT using the current ACTIVE signing key.
+     * The {@code kid} is included in the JWT header for key lookup during verification.
+     */
+    private String sign(JWTClaimsSet claimsSet) {
+        try {
+            SigningKey activeKey = keyManagementService.getActiveKey();
+            RSAPrivateKey privateKey = keyManagementService.parsePrivateKey(activeKey.getPrivateKeyPem());
+
+            SignedJWT signedJWT = new SignedJWT(
+                    new JWSHeader.Builder(JWSAlgorithm.RS256)
+                            .type(JOSEObjectType.JWT)
+                            .keyID(activeKey.getKid())
+                            .build(),
+                    claimsSet
+            );
+            signedJWT.sign(new RSASSASigner(privateKey));
+            return signedJWT.serialize();
+        } catch (JOSEException e) {
+            throw new IllegalStateException("Unable to sign JWT", e);
         }
-        return bytes;
     }
 }

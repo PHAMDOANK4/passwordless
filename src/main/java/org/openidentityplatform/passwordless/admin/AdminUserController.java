@@ -1,5 +1,6 @@
 package org.openidentityplatform.passwordless.admin;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.openidentityplatform.passwordless.iam.dto.CreateUserRequest;
@@ -161,12 +162,22 @@ public class AdminUserController {
 
     /**
      * Update basic user info (status, role, mfaEnabled). Does NOT touch auth logic.
+     * Role changes require SUPER_ADMIN.
      */
     @PutMapping("/{id}")
     public ResponseEntity<Map<String, Object>> updateUser(
             @PathVariable String id,
-            @RequestBody Map<String, Object> updates
+            @RequestBody Map<String, Object> updates,
+            HttpServletRequest httpRequest
     ) {
+        // If the request includes a role change, require SUPER_ADMIN
+        if (updates.containsKey("role")) {
+            String adminRole = (String) httpRequest.getAttribute("adminUserRole");
+            if (!"SUPER_ADMIN".equals(adminRole)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Only SUPER_ADMIN can change user roles"));
+            }
+        }
         return userRepository.findById(id)
                 .map(user -> {
                     if (updates.containsKey("status")) {
@@ -232,6 +243,7 @@ public class AdminUserController {
      */
     @DeleteMapping("/{id}")
     @Transactional
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<Void> deleteUser(@PathVariable String id) {
         if (!userRepository.existsById(id)) {
             return ResponseEntity.notFound().build();

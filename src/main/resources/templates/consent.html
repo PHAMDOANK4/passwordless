@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authorization Consent</title>
+    <style>
+        :root {
+            --bg: #0f1117;
+            --surface: #1a1d27;
+            --border: #2a2d3a;
+            --primary: #6366f1;
+            --primary-hover: #818cf8;
+            --danger: #ef4444;
+            --danger-hover: #f87171;
+            --text: #e2e8f0;
+            --text-muted: #94a3b8;
+            --radius: 12px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .consent-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 40px;
+            max-width: 480px;
+            width: 100%;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .consent-card h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .consent-card .subtitle {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 24px;
+        }
+
+        .client-name {
+            color: var(--primary-hover);
+            font-weight: 600;
+        }
+
+        .scope-list {
+            list-style: none;
+            margin-bottom: 32px;
+        }
+
+        .scope-list li {
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .scope-list li::before {
+            content: '✓';
+            color: var(--primary);
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .scope-name {
+            font-weight: 500;
+        }
+
+        .scope-desc {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-approve {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-approve:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-deny {
+            background: transparent;
+            color: var(--danger);
+            border: 1px solid var(--danger);
+        }
+
+        .btn-deny:hover {
+            background: var(--danger);
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .user-info {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            margin-top: 16px;
+        }
+
+        .error-msg {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid var(--danger);
+            border-radius: 8px;
+            padding: 16px;
+            color: var(--danger);
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<div class="consent-card">
+    <!-- Error state -->
+    <div th:if="${error}" class="error-msg">
+        <p th:text="${error}">Error message</p>
+    </div>
+
+    <!-- Consent form -->
+    <div th:unless="${error}">
+        <h1>Authorization Request</h1>
+        <p class="subtitle">
+            <span class="client-name" th:text="${clientName}">Application</span>
+            wants to access your account.
+        </p>
+
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;">
+            This will allow the application to:
+        </p>
+
+        <ul class="scope-list">
+            <li th:each="scope : ${scopes}">
+                <div>
+                    <div class="scope-name" th:text="${scope.name()}">scope</div>
+                    <div class="scope-desc" th:text="${scope.description()}">description</div>
+                </div>
+            </li>
+        </ul>
+
+        <div class="btn-group">
+            <form th:action="@{/oauth2/consent/deny}" method="post" style="flex:1">
+                <input type="hidden" name="request_id" th:value="${requestId}"/>
+                <button type="submit" class="btn btn-deny" style="width:100%">Deny</button>
+            </form>
+            <form th:action="@{/oauth2/consent/approve}" method="post" style="flex:1">
+                <input type="hidden" name="request_id" th:value="${requestId}"/>
+                <button type="submit" class="btn btn-approve" style="width:100%">Approve</button>
+            </form>
+        </div>
+
+        <p class="user-info" th:if="${userEmail}">
+            Signed in as <span th:text="${userEmail}">user@example.com</span>
+        </p>
+    </div>
+</div>
+</body>
+</html>

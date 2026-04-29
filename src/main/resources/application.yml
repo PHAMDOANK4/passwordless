@@ -5,7 +5,13 @@ server:
         same-site: lax
 
 security:
-  relaxed-mode: true
+  admin:
+    enabled: false  # Set to true in production to enforce JWT auth on /admin/api/**
+
+admin:
+  default-email: ${ADMIN_EMAIL:admin@system.local}
+  bootstrap:
+    enabled: true  # Set to false to disable auto-creation of default SUPER_ADMIN
 
 spring:
   data:

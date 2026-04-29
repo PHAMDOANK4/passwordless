@@ -58,21 +58,20 @@ public class AuthController {
     }
 
     @PostMapping("/mfa/verify")
-        public AuthVerifyResponse verify(
+    public AuthVerifyResponse verify(
             @RequestBody @Valid AuthVerifyRequest request,
             HttpServletRequest httpRequest,
-            HttpServletResponse httpResponse
-        )
+            HttpServletResponse httpResponse)
             throws InvalidAuthTransactionException, OtpVerifyAttemptsExceeded, UserNotFoundException {
         AuthVerifyResponse response = authOrchestratorService.verify(request, httpRequest);
 
         ResponseCookie idpSessionCookie = ResponseCookie.from(AuthSessionCookie.NAME, response.getSessionId())
-            .httpOnly(true)
-            .secure(httpRequest.isSecure())
-            .path("/")
-            .sameSite("Lax")
-            .maxAge(authProperties.getSessionTtlSeconds())
-            .build();
+                .httpOnly(true)
+                .secure(httpRequest.isSecure())
+                .path("/")
+                .sameSite("Lax")
+                .maxAge(authProperties.getSessionTtlSeconds())
+                .build();
         httpResponse.addHeader("Set-Cookie", idpSessionCookie.toString());
 
         return response;
@@ -80,30 +79,29 @@ public class AuthController {
 
     @PostMapping("/mfa/totp/register")
     public AuthTotpRegistrationResponse registerTotp(
-            @RequestHeader(value = "Authorization", required = false) String authorization
-    ) throws InvalidAuthTransactionException {
+            @RequestHeader(value = "Authorization", required = false) String authorization)
+            throws InvalidAuthTransactionException {
         return authOrchestratorService.registerTotp(authorization);
     }
 
     @PostMapping("/mfa/totp/activate")
     public AuthMfaPreferenceResponse activateTotp(
             @RequestHeader(value = "Authorization", required = false) String authorization,
-            @RequestBody @Valid AuthTotpActivationRequest request
-    ) throws InvalidAuthTransactionException {
+            @RequestBody @Valid AuthTotpActivationRequest request) throws InvalidAuthTransactionException {
         return authOrchestratorService.activateTotp(authorization, request.getTotp());
     }
 
     @PostMapping("/mfa/webauthn/activate")
     public AuthMfaPreferenceResponse activateWebAuthn(
-            @RequestHeader(value = "Authorization", required = false) String authorization
-    ) throws InvalidAuthTransactionException {
+            @RequestHeader(value = "Authorization", required = false) String authorization)
+            throws InvalidAuthTransactionException {
         return authOrchestratorService.activateWebAuthn(authorization);
     }
 
     @PostMapping("/mfa/email/activate")
     public AuthMfaPreferenceResponse activateEmailOtp(
-            @RequestHeader(value = "Authorization", required = false) String authorization
-    ) throws InvalidAuthTransactionException {
+            @RequestHeader(value = "Authorization", required = false) String authorization)
+            throws InvalidAuthTransactionException {
         return authOrchestratorService.activateEmailOtp(authorization);
     }
 
@@ -117,8 +115,7 @@ public class AuthController {
     public Map<String, String> logout(
             @RequestHeader(value = "Authorization", required = false) String authorization,
             HttpServletRequest httpRequest,
-            HttpServletResponse httpResponse
-    )
+            HttpServletResponse httpResponse)
             throws InvalidAuthTransactionException {
         Map<String, String> response = authOrchestratorService.logout(authorization);
 
@@ -136,23 +133,22 @@ public class AuthController {
 
     @GetMapping("/sessions")
     public List<AuthSessionResponse> sessions(
-            @RequestHeader(value = "Authorization", required = false) String authorization
-    ) throws InvalidAuthTransactionException {
+            @RequestHeader(value = "Authorization", required = false) String authorization)
+            throws InvalidAuthTransactionException {
         return authOrchestratorService.sessions(authorization);
     }
 
     @PostMapping("/sessions/{sessionId}/revoke")
     public Map<String, Object> revokeSession(
             @RequestHeader(value = "Authorization", required = false) String authorization,
-            @PathVariable("sessionId") String sessionId
-    ) throws InvalidAuthTransactionException {
+            @PathVariable("sessionId") String sessionId) throws InvalidAuthTransactionException {
         return authOrchestratorService.revokeSession(authorization, sessionId);
     }
 
     @PostMapping("/sessions/revoke-all")
     public Map<String, Object> revokeAllSessions(
-            @RequestHeader(value = "Authorization", required = false) String authorization
-    ) throws InvalidAuthTransactionException {
+            @RequestHeader(value = "Authorization", required = false) String authorization)
+            throws InvalidAuthTransactionException {
         return authOrchestratorService.revokeAllSessions(authorization);
     }
 }
