@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Setup Auth Methods | AuthCentralA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/auth/css/auth.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <div>
+        <h1>Setup authentication methods</h1>
+        <p>Choose additional factors such as TOTP, email OTP, or passkeys.</p>
+      </div>
+      <nav class="nav-links">
+        <a href="/login/">Login</a>
+        <a href="/setup-auth-methods/">Setup methods</a>
+      </nav>
+    </header>
+
+    <section class="card">
+      <h2>Profile</h2>
+      <p id="profileSummary" class="mono">Loading profile...</p>
+      <div class="actions">
+        <button id="refreshProfileBtn" class="btn-soft" type="button">Refresh profile</button>
+        <button id="logoutBtn" class="btn-danger" type="button">Logout</button>
+      </div>
+      <div id="profileStatus" class="status">Ready.</div>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h3>Email OTP</h3>
+        <p class="hint">Set email OTP as the preferred MFA method.</p>
+        <div class="actions">
+          <button id="activateEmailBtn" class="btn-primary" type="button">Activate email OTP</button>
+        </div>
+        <div id="emailStatus" class="status">Not activated.</div>
+      </article>
+
+      <article class="card">
+        <h3>TOTP Authenticator</h3>
+        <p class="hint">Scan the QR code, then activate with a fresh TOTP code.</p>
+        <div class="actions">
+          <button id="startTotpBtn" class="btn-primary" type="button">Generate QR</button>
+        </div>
+        <div id="totpQrBox" class="qr-box">QR will appear here.</div>
+        <div class="form">
+          <div>
+            <label for="totpActivateCode">Activation code</label>
+            <input id="totpActivateCode" type="text" inputmode="numeric" placeholder="123456" />
+          </div>
+          <div class="actions">
+            <button id="activateTotpBtn" class="btn-alt" type="button">Activate TOTP</button>
+          </div>
+        </div>
+        <div id="totpStatus" class="status">Not activated.</div>
+      </article>
+
+      <article class="card">
+        <h3>Passkey (WebAuthn)</h3>
+        <p class="hint">Register a passkey and optionally set it as preferred.</p>
+        <div class="actions">
+          <button id="registerPasskeyBtn" class="btn-primary" type="button">Register passkey</button>
+          <button id="activatePasskeyBtn" class="btn-soft" type="button">Set as preferred</button>
+        </div>
+        <div id="passkeyStatus" class="status">Not activated.</div>
+      </article>
+
+      <article class="card">
+        <h3>SMS (placeholder)</h3>
+        <p class="hint">SMS support can be wired when the backend endpoint is ready.</p>
+        <div class="actions">
+          <button class="btn-soft" type="button" disabled>Coming soon</button>
+        </div>
+        <div class="status">No SMS endpoint configured.</div>
+      </article>
+    </section>
+  </div>
+
+  <script type="module" src="/auth/js/pages/setup-auth-methods.js"></script>
+</body>
+</html>

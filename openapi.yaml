@@ -1,0 +1,303 @@
+openapi: 3.0.3
+info:
+  title: Passwordless Identity Provider API
+  description: API specification for the Passwordless Identity Provider system including Core Auth and OAuth2.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+paths:
+  /auth/register:
+    post:
+      summary: Register a new user
+      operationId: registerUser
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRegisterRequest'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthRegisterResponse'
+        '400':
+          description: Invalid input
+
+  /auth/login:
+    post:
+      summary: Initiate login flow
+      operationId: loginUser
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthLoginRequest'
+      responses:
+        '200':
+          description: Login initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthLoginResponse'
+
+  /auth/mfa/verify:
+    post:
+      summary: Verify MFA challenge
+      operationId: verifyMfa
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthVerifyRequest'
+      responses:
+        '200':
+          description: Verification successful, returns session and tokens
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                description: IDP_SESSION HTTP-only cookie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthVerifyResponse'
+        '400':
+          description: Invalid request
+        '401':
+          description: Verification failed
+
+  /auth/me:
+    get:
+      summary: Get current authenticated user profile
+      operationId: getMe
+      tags:
+        - Session
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthMeResponse'
+        '401':
+          description: Unauthorized
+
+  /auth/logout:
+    post:
+      summary: Logout current user
+      operationId: logout
+      tags:
+        - Session
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Successfully logged out
+
+  /oauth2/authorize:
+    get:
+      summary: OAuth2 / OIDC Authorization Endpoint
+      tags:
+        - OAuth2
+      parameters:
+        - name: response_type
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: client_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: redirect_uri
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: scope
+          in: query
+          schema:
+            type: string
+        - name: state
+          in: query
+          schema:
+            type: string
+        - name: code_challenge
+          in: query
+          schema:
+            type: string
+        - name: code_challenge_method
+          in: query
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirects to IdP login page or redirect_uri with auth code.
+
+  /oauth2/token:
+    post:
+      summary: OAuth2 Token Endpoint
+      tags:
+        - OAuth2
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                grant_type:
+                  type: string
+                client_id:
+                  type: string
+                client_secret:
+                  type: string
+                code:
+                  type: string
+                redirect_uri:
+                  type: string
+                code_verifier:
+                  type: string
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: Token response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuth2TokenResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: IDP_SESSION
+  schemas:
+    AuthRegisterRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phoneNumber:
+          type: string
+        mfaEnabled:
+          type: boolean
+          default: false
+        preferredMethod:
+          type: string
+          enum: [EMAIL_OTP, SMS_OTP, TOTP, WEBAUTHN, PASSWORD]
+    AuthRegisterResponse:
+      type: object
+      properties:
+        userId:
+          type: string
+        email:
+          type: string
+        displayName:
+          type: string
+        mfaEnabled:
+          type: boolean
+        preferredMfaMethod:
+          type: string
+    AuthLoginRequest:
+      type: object
+      required:
+        - identifier
+      properties:
+        identifier:
+          type: string
+          description: Email or username
+        authTxId:
+          type: string
+    AuthLoginResponse:
+      type: object
+      properties:
+        authTxId:
+          type: string
+        nextStep:
+          type: string
+        selectedMethod:
+          type: string
+        expiresInSeconds:
+          type: integer
+        challenge:
+          type: object
+    AuthVerifyRequest:
+      type: object
+      required:
+        - authTxId
+        - code
+        - method
+      properties:
+        authTxId:
+          type: string
+        code:
+          type: string
+        method:
+          type: string
+    AuthVerifyResponse:
+      type: object
+      properties:
+        authenticated:
+          type: boolean
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        sessionId:
+          type: string
+        userId:
+          type: string
+    AuthMeResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+    OAuth2TokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        id_token:
+          type: string
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+        expires_in:
+          type: integer

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register | AuthCentralA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/auth/css/auth.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <div>
+        <h1>Create account</h1>
+        <p>Register a new user and auto-start OTP verification.</p>
+      </div>
+      <nav class="nav-links">
+        <a href="/login/">Login</a>
+        <a href="/register/">Register</a>
+      </nav>
+    </header>
+
+    <section class="card">
+      <h2>Register</h2>
+      <p class="hint">After registration, we will begin the login flow and redirect to OTP verification.</p>
+      <form id="registerForm" class="form">
+        <div class="row">
+          <div>
+            <label for="registerEmail">Email</label>
+            <input id="registerEmail" type="email" required placeholder="alice@example.com" />
+          </div>
+          <div>
+            <label for="registerPhone">Phone (optional)</label>
+            <input id="registerPhone" type="tel" placeholder="+1 202 555 0142" />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="registerFirstName">First name</label>
+            <input id="registerFirstName" type="text" required placeholder="Alice" />
+          </div>
+          <div>
+            <label for="registerLastName">Last name</label>
+            <input id="registerLastName" type="text" required placeholder="Nguyen" />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="registerMfaEnabled">MFA enabled</label>
+            <select id="registerMfaEnabled">
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </select>
+          </div>
+          <div>
+            <label for="registerPreferredMethod">Preferred method</label>
+            <select id="registerPreferredMethod">
+              <option value="">Auto-select</option>
+              <option value="OTP">Email OTP</option>
+              <option value="TOTP">Authenticator (TOTP)</option>
+              <option value="WEBAUTHN">Passkey (WebAuthn)</option>
+            </select>
+          </div>
+        </div>
+        <div class="actions">
+          <button id="registerSubmit" class="btn-alt" type="submit">Create account</button>
+          <a class="btn-soft" href="/login/">Already have an account?</a>
+        </div>
+      </form>
+      <div id="registerStatus" class="status">Waiting for input.</div>
+    </section>
+  </div>
+
+  <script type="module" src="/auth/js/pages/register.js"></script>
+</body>
+</html>

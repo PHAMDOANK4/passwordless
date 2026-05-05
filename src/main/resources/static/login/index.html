@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login | AuthCentralA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/auth/css/auth.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <div>
+        <h1>AuthCentralA</h1>
+        <p>Sign in with passwordless OTP or your preferred method.</p>
+      </div>
+      <nav class="nav-links">
+        <a href="/login/">Login</a>
+        <a href="/register/">Register</a>
+        <a href="/verify-otp/">Verify OTP</a>
+      </nav>
+    </header>
+
+    <section class="card">
+      <h2>Login</h2>
+      <p class="hint">Start the authentication transaction. You will be asked to verify OTP next.</p>
+      <form id="loginForm" class="form">
+        <div>
+          <label for="loginIdentifier">Email or username</label>
+          <input id="loginIdentifier" type="text" autocomplete="username" required placeholder="alice@example.com" />
+        </div>
+        <div class="row">
+          <div>
+            <label for="loginMethod">Preferred method</label>
+            <select id="loginMethod">
+              <option value="">Auto-select</option>
+              <option value="OTP">Email OTP</option>
+              <option value="TOTP">Authenticator (TOTP)</option>
+              <option value="WEBAUTHN">Passkey (WebAuthn)</option>
+            </select>
+          </div>
+          <div>
+            <label for="loginClientId">Client ID</label>
+            <input id="loginClientId" type="text" placeholder="passwordless-web" />
+          </div>
+        </div>
+        <div class="actions">
+          <button id="loginSubmit" class="btn-primary" type="submit">Start login</button>
+          <a class="btn-soft" href="/register/">No account yet?</a>
+        </div>
+      </form>
+      <div id="loginStatus" class="status">Waiting for input.</div>
+    </section>
+
+    <section class="card">
+      <h3>What happens next?</h3>
+      <p class="hint">We will create a login transaction and redirect you to verify the OTP or passkey challenge.</p>
+      <div class="pill mono">/login → /verify-otp → /setup-auth-methods</div>
+    </section>
+  </div>
+
+  <script type="module" src="/auth/js/pages/login.js"></script>
+</body>
+</html>
