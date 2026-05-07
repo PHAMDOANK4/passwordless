@@ -2,11 +2,20 @@ import { api } from "../api.js";
 import { ROUTES, goTo } from "../routes.js";
 import { requireUnauthenticated } from "../guards.js";
 import { byId, emptyToNull, setLoading, setStatus } from "../ui.js";
-import { getState, setAuthTransaction, setUserEmail } from "../store.js";
+import { getState, setAuthTransaction, setUserEmail, setOauthRequestId } from "../store.js";
 
 document.addEventListener("DOMContentLoaded", () => {
   if (!requireUnauthenticated()) {
     return;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const oauthReqId = params.get("oauth_request_id");
+  if (oauthReqId) {
+    setOauthRequestId(oauthReqId);
+    document.querySelectorAll('a[href^="/register/"]').forEach(link => {
+      link.href = `/register/?oauth_request_id=${encodeURIComponent(oauthReqId)}`;
+    });
   }
 
   const state = getState();

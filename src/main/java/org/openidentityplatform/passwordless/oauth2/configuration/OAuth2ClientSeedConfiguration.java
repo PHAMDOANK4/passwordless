@@ -105,6 +105,7 @@ public class OAuth2ClientSeedConfiguration {
         }
     }
 
+
     private String generateSecret() {
         byte[] bytes = new byte[32];
         secureRandom.nextBytes(bytes);

@@ -5,7 +5,8 @@ const storageKeys = {
   authStage: "idp_auth_stage",
   authTxId: "idp_auth_tx_id",
   selectedMethod: "idp_selected_method",
-  challenge: "idp_auth_challenge"
+  challenge: "idp_auth_challenge",
+  oauthRequestId: "idp_oauth_request_id"
 };
 
 function readString(key, fallback = "") {
@@ -48,6 +49,7 @@ export function getState() {
   const authTxId = readString(storageKeys.authTxId, "");
   const selectedMethod = readString(storageKeys.selectedMethod, "");
   const challenge = readJson(storageKeys.challenge, null);
+  const oauthRequestId = readString(storageKeys.oauthRequestId, "");
 
   let authStage = readString(storageKeys.authStage, "");
   if (!authStage) {
@@ -64,7 +66,8 @@ export function getState() {
     authStage,
     authTxId,
     selectedMethod,
-    challenge
+    challenge,
+    oauthRequestId
   };
 }
 
@@ -79,6 +82,7 @@ export function setState(patch) {
   writeString(storageKeys.authTxId, next.authTxId);
   writeString(storageKeys.selectedMethod, next.selectedMethod);
   writeJson(storageKeys.challenge, next.challenge);
+  writeString(storageKeys.oauthRequestId, next.oauthRequestId);
 
   return next;
 }
@@ -146,3 +150,12 @@ export function hasPendingOtp() {
 export function getAccessToken() {
   return getState().accessToken;
 }
+
+export function setOauthRequestId(id) {
+  return setState({ oauthRequestId: id || "" });
+}
+
+export function clearOauthRequestId() {
+  return setState({ oauthRequestId: "" });
+}
+

@@ -115,7 +115,7 @@ public class OAuth2Controller {
         String requestId = authorizationRequestCache.store(
                 responseType, clientId, redirectUri, scope, state,
                 codeChallenge, codeChallengeMethod, nonce);
-        String loginUrl = "/idp/index.html?oauth_request_id=" + urlEncode(requestId);
+        String loginUrl = "/login/?oauth_request_id=" + urlEncode(requestId);
         return ResponseEntity.status(HttpStatus.FOUND)
                 .header(HttpHeaders.LOCATION, loginUrl).build();
     }

@@ -2,7 +2,7 @@ import { api } from "../api.js";
 import { ROUTES, goTo } from "../routes.js";
 import { requirePendingOtp } from "../guards.js";
 import { byId, hide, setLoading, setStatus, setText, show } from "../ui.js";
-import { clearAuthTransaction, getState, setTokens } from "../store.js";
+import { clearAuthTransaction, getState, setTokens, clearOauthRequestId } from "../store.js";
 import { normalizeRequestOptions, serializeAssertion } from "../webauthn.js";
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -139,10 +139,20 @@ function onVerifySuccess(response) {
     throw new Error("No access token returned from verification.");
   }
 
+  const state = getState();
+  const oauthReqId = state.oauthRequestId;
+
   setTokens(accessToken, refreshToken);
   clearAuthTransaction();
 
-  window.setTimeout(() => {
-    goTo(ROUTES.setupAuthMethods);
-  }, 1200);
+  if (oauthReqId) {
+    clearOauthRequestId();
+    window.setTimeout(() => {
+      window.location.href = `/oauth2/authorize/callback?oauth_request_id=${encodeURIComponent(oauthReqId)}`;
+    }, 1200);
+  } else {
+    window.setTimeout(() => {
+      goTo(ROUTES.setupAuthMethods);
+    }, 1200);
+  }
 }

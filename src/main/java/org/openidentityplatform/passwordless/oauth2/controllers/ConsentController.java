@@ -85,10 +85,15 @@ public class ConsentController {
         String clientName = clientOpt.map(OAuthClient::getClientName).orElse(cached.getClientId());
         List<ScopeInfo> scopes = parseScopeInfoList(cached.getScope());
 
+        // Load User explicitly to avoid LazyInitializationException on Hibernate proxy
+        String userEmail = userRepository.findById(session.get().getUser().getId())
+                .map(User::getEmail)
+                .orElse(null);
+
         model.addAttribute("requestId", requestId);
         model.addAttribute("clientName", clientName);
         model.addAttribute("scopes", scopes);
-        model.addAttribute("userEmail", session.get().getUser().getEmail());
+        model.addAttribute("userEmail", userEmail);
         return "consent";
     }
 

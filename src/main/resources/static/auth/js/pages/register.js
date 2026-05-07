@@ -2,11 +2,17 @@ import { api } from "../api.js";
 import { ROUTES, goTo } from "../routes.js";
 import { requireUnauthenticated } from "../guards.js";
 import { byId, emptyToNull, setLoading, setStatus } from "../ui.js";
-import { setAuthTransaction, setUserEmail } from "../store.js";
+import { setAuthTransaction, setUserEmail, setOauthRequestId } from "../store.js";
 
 document.addEventListener("DOMContentLoaded", () => {
   if (!requireUnauthenticated()) {
     return;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const oauthReqId = params.get("oauth_request_id");
+  if (oauthReqId) {
+    setOauthRequestId(oauthReqId);
   }
 
   byId("registerForm")?.addEventListener("submit", onRegisterSubmit);

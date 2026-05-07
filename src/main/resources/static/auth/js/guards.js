@@ -2,7 +2,14 @@ import { ROUTES, goTo } from "./routes.js";
 import { getState, hasPendingOtp, isAuthenticated } from "./store.js";
 
 export function requireUnauthenticated() {
+  const params = new URLSearchParams(window.location.search);
+  const oauthReqId = params.get("oauth_request_id") || getState().oauthRequestId;
+
   if (isAuthenticated()) {
+    if (oauthReqId) {
+      window.location.href = `/oauth2/authorize/callback?oauth_request_id=${encodeURIComponent(oauthReqId)}`;
+      return false;
+    }
     goTo(ROUTES.setupAuthMethods);
     return false;
   }
