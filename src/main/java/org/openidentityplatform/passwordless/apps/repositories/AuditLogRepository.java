@@ -20,6 +20,9 @@ import org.openidentityplatform.passwordless.apps.models.AuditLog;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
@@ -31,4 +34,8 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, String> {
     Page<AuditLog> findByEventType(String eventType, Pageable pageable);
     List<AuditLog> findByCreatedAtBetween(Instant start, Instant end);
     long countByAppIdAndCreatedAtAfter(String appId, Instant after);
+
+    @Modifying
+    @Query("UPDATE AuditLog al SET al.user = null WHERE al.user.id = :userId")
+    void clearUserReference(@Param("userId") String userId);
 }

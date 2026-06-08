@@ -2,6 +2,9 @@ package org.openidentityplatform.passwordless.otp.repositories;
 
 import org.openidentityplatform.passwordless.otp.models.SentOtp;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -16,5 +19,9 @@ public interface SentOtpRepository extends JpaRepository<SentOtp, UUID> {
     // Admin queries
     List<SentOtp> findByDestinationOrderByLastSentAtDesc(String destination);
     long count();
+
+    @Modifying
+    @Query("DELETE FROM SentOtp s WHERE s.user.id = :userId")
+    int deleteByUserId(@Param("userId") String userId);
 }
 

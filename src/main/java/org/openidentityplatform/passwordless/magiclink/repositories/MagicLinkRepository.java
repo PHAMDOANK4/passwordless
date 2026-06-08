@@ -2,6 +2,7 @@ package org.openidentityplatform.passwordless.magiclink.repositories;
 
 import org.openidentityplatform.passwordless.magiclink.models.MagicLink;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -51,4 +52,8 @@ public interface MagicLinkRepository extends JpaRepository<MagicLink, UUID> {
      */
     @Query("SELECT COUNT(m) FROM MagicLink m WHERE m.email = :email AND m.createdAt > :since")
     long countRecentLinks(@Param("email") String email, @Param("since") Instant since);
+
+    @Modifying
+    @Query("DELETE FROM MagicLink m WHERE m.user.id = :userId")
+    int deleteByUserId(@Param("userId") String userId);
 }

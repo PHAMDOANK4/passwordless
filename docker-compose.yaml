@@ -9,7 +9,7 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD:-changeme}
       TZ: UTC
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - mysql-data:/var/lib/mysql
       - /etc/localtime:/etc/localtime:ro
@@ -109,7 +109,7 @@ services:
             -keyout /etc/nginx/certs/nginx-selfsigned.key \
             -out /etc/nginx/certs/nginx-selfsigned.crt \
             -subj "/C=VN/ST=HCM/L=HCM/O=Dev/CN=passwordless.actvn" \
-            -addext "subjectAltName=DNS:passwordless.actvn,IP:192.168.119.146"
+            -addext "subjectAltName=DNS:passwordless.actvn,IP:192.168.79.1"
         fi
         chmod 644 /etc/nginx/certs/nginx-selfsigned.crt
         chmod 600 /etc/nginx/certs/nginx-selfsigned.key

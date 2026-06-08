@@ -8,8 +8,446 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/auth/css/auth.css" />
+  <style>
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 180ms ease, visibility 180ms ease;
+    }
+
+    .modal-overlay.open {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal-box {
+      background: #fff;
+      border-radius: 28px;
+      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.22);
+      width: 100%;
+      max-width: 440px;
+      margin: 12px;
+      transform: translateY(16px) scale(0.98);
+      transition: transform 200ms ease;
+    }
+
+    .modal-overlay.open .modal-box {
+      transform: translateY(0) scale(1);
+    }
+
+    .ggl-topbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 20px 24px 0;
+    }
+
+    .ggl-brand-icon {
+      width: 26px;
+      height: 26px;
+      border-radius: 7px;
+      background: linear-gradient(135deg, #1b8f83 0%, #176c63 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 0.82rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .ggl-topbar-label {
+      font-size: 0.875rem;
+      color: #5f6368;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+
+    .ggl-body {
+      padding: 20px 40px 32px;
+    }
+
+    .ggl-app-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 13px;
+      background: linear-gradient(135deg, #1b8f83, #176c63);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 14px rgba(27, 127, 117, 0.28);
+    }
+
+    .ggl-title {
+      font-size: 1.75rem;
+      font-weight: 400;
+      color: #202124;
+      margin: 0 0 4px;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+
+    .ggl-subtitle {
+      font-size: 1rem;
+      color: #202124;
+      margin: 0 0 24px;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+
+    .ggl-subtitle strong {
+      font-weight: 600;
+    }
+
+    .ggl-input {
+      display: block;
+      width: 100%;
+      border: 1px solid #dadce0;
+      border-radius: 4px;
+      padding: 13px 14px;
+      font-size: 1rem;
+      color: #202124;
+      background: #fff;
+      outline: none;
+      transition: border-color 140ms ease, box-shadow 140ms ease;
+      font-family: 'Space Grotesk', sans-serif;
+      box-sizing: border-box;
+      border-radius: 4px;
+    }
+
+    .ggl-input:focus {
+      border-color: #1a73e8;
+      box-shadow: 0 0 0 1px #1a73e8;
+    }
+
+    .ggl-input::placeholder {
+      color: #80868b;
+    }
+
+    .ggl-forgot {
+      display: inline-block;
+      margin: 10px 0 18px;
+      font-size: 0.875rem;
+      color: #1a73e8;
+      text-decoration: none;
+    }
+
+    .ggl-forgot:hover {
+      text-decoration: underline;
+      color: #1a73e8;
+    }
+
+    .ggl-privacy {
+      font-size: 0.78rem;
+      color: #5f6368;
+      line-height: 1.55;
+      margin: 0 0 14px;
+    }
+
+    .ggl-privacy a {
+      color: #1a73e8;
+      text-decoration: none;
+    }
+
+    .ggl-privacy a:hover {
+      text-decoration: underline;
+    }
+
+    .ggl-error {
+      min-height: 18px;
+      font-size: 0.82rem;
+      color: #d93025;
+      margin-bottom: 10px;
+    }
+
+    .ggl-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .ggl-btn-create {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #1a73e8;
+      text-decoration: none;
+      padding: 9px 14px;
+      border-radius: 4px;
+      transition: background 140ms ease;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+
+    .ggl-btn-create:hover {
+      background: rgba(26, 115, 232, 0.08);
+      text-decoration: none;
+      color: #1a73e8;
+    }
+
+    .ggl-btn-next {
+      background: #1a73e8;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 10px 24px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: 'Space Grotesk', sans-serif;
+      transition: background 140ms ease, box-shadow 140ms ease;
+    }
+
+    .ggl-btn-next:hover {
+      background: #1765cc;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+    }
+
+    .ggl-btn-next:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+
+    @media (max-width: 480px) {
+      .modal-box {
+        border-radius: 18px;
+      }
+
+      .ggl-body {
+        padding: 18px 24px 28px;
+      }
+    }
+
+    /* ── Account Chooser ── */
+    .ac-section {
+      background: #fff;
+      border-radius: 28px;
+      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.12);
+      width: 100%;
+      max-width: 440px;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+
+    .ac-topbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 20px 24px 0;
+    }
+
+    .ac-body {
+      padding: 20px 36px 32px;
+    }
+
+    .ac-title {
+      font-size: 1.55rem;
+      font-weight: 400;
+      color: #202124;
+      margin: 0 0 4px;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+
+    .ac-subtitle {
+      font-size: 1rem;
+      color: #202124;
+      margin: 0 0 20px;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+
+    .ac-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 12px;
+    }
+
+    .ac-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: background 120ms ease, border-color 120ms ease;
+    }
+
+    .ac-item:hover {
+      background: #f1f3f4;
+      border-color: #dadce0;
+    }
+
+    .ac-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #e8f0fe;
+      color: #1a73e8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+
+    .ac-info {
+      flex: 1;
+      min-width: 0;
+      text-align: left;
+    }
+
+    .ac-name {
+      font-size: .9rem;
+      font-weight: 500;
+      color: #202124;
+      font-family: 'Space Grotesk', sans-serif;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .ac-email {
+      font-size: .8rem;
+      color: #5f6368;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .ac-chevron {
+      color: #5f6368;
+      font-size: 1.2rem;
+      flex-shrink: 0;
+    }
+
+    .ac-divider {
+      border: none;
+      border-top: 1px solid #e8eaed;
+      margin: 12px 0;
+    }
+
+    .ac-other-btn {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: .9rem;
+      color: #1a73e8;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 500;
+      transition: background 120ms ease;
+    }
+
+    .ac-other-btn:hover { background: #f1f3f4; }
+
+    .ac-other-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #e8f0fe;
+      color: #1a73e8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .ac-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 36px;
+      border-top: 1px solid #e8eaed;
+    }
+
+    .ac-footer-links {
+      display: flex;
+      gap: 16px;
+    }
+
+    .ac-footer a {
+      font-size: .78rem;
+      color: #5f6368;
+      text-decoration: none;
+    }
+
+    .ac-footer a:hover { text-decoration: underline; }
+
+    .ac-cancel-btn {
+      background: transparent;
+      border: none;
+      color: #1a73e8;
+      font-size: .875rem;
+      font-weight: 500;
+      font-family: 'Space Grotesk', sans-serif;
+      cursor: pointer;
+      padding: 8px 14px;
+      border-radius: 4px;
+      transition: background 120ms ease;
+    }
+
+    .ac-cancel-btn:hover { background: rgba(26,115,232,.08); }
+  </style>
 </head>
 <body>
+  <!-- Account Chooser — hiển thị khi có tài khoản đã đăng nhập trước đó -->
+  <div id="accountChooserWrap" style="display:none;
+       min-height:100vh; display:none;
+       align-items:center; justify-content:center; padding:24px;">
+    <div class="ac-section">
+
+      <div class="ac-topbar">
+        <div class="ggl-brand-icon">A</div>
+        <span class="ggl-topbar-label">AuthCentralA</span>
+      </div>
+
+      <div class="ac-body">
+        <h2 class="ac-title">Chọn tài khoản</h2>
+        <p class="ac-subtitle">để tiếp tục tới <strong id="acAppName">ứng dụng</strong></p>
+
+        <div class="ac-list" id="acAccountList">
+          <!-- Tài khoản sẽ được chèn bởi JS -->
+        </div>
+
+        <hr class="ac-divider">
+
+        <button class="ac-other-btn" id="acUseOtherBtn">
+          <div class="ac-other-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="16"/>
+              <line x1="8"  y1="12" x2="16" y2="12"/>
+            </svg>
+          </div>
+          Dùng tài khoản khác
+        </button>
+      </div>
+
+      <div class="ac-footer">
+        <div class="ac-footer-links">
+          <a href="#">Chính sách quyền riêng tư</a>
+          <a href="#">Điều khoản dịch vụ</a>
+        </div>
+        <button class="ac-cancel-btn" id="acCancelBtn">Hủy</button>
+      </div>
+
+    </div>
+  </div>
+
   <div class="page">
     <header class="hero">
       <div>
@@ -29,7 +467,7 @@
       <form id="loginForm" class="form">
         <div>
           <label for="loginIdentifier">Email or username</label>
-          <input id="loginIdentifier" type="text" autocomplete="username" required placeholder="alice@example.com" />
+          <input id="loginIdentifier" type="text" autocomplete="username" placeholder="alice@example.com" />
         </div>
         <div class="row">
           <div>
@@ -47,7 +485,7 @@
           </div>
         </div>
         <div class="actions">
-          <button id="loginSubmit" class="btn-primary" type="submit">Start login</button>
+          <button id="loginSubmit" class="btn-primary" type="button">Start login</button>
           <a class="btn-soft" href="/register/">No account yet?</a>
         </div>
       </form>
@@ -59,6 +497,49 @@
       <p class="hint">We will create a login transaction and redirect you to verify the OTP or passkey challenge.</p>
       <div class="pill mono">/login → /verify-otp → /setup-auth-methods</div>
     </section>
+  </div>
+
+  <!-- Sign-in modal -->
+  <div id="loginModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-box">
+      <div class="ggl-topbar">
+        <div class="ggl-brand-icon">A</div>
+        <span class="ggl-topbar-label">Đăng nhập bằng AuthCentralA</span>
+      </div>
+
+      <div class="ggl-body">
+        <div class="ggl-app-icon">A</div>
+
+        <h2 id="modalTitle" class="ggl-title">Đăng nhập</h2>
+        <p class="ggl-subtitle">Tiếp tục tới <strong id="modalAppName">AuthCentralA</strong></p>
+
+        <form id="modalLoginForm" novalidate>
+          <input
+            id="modalIdentifier"
+            class="ggl-input"
+            type="text"
+            autocomplete="username"
+            placeholder="Email hoặc số điện thoại"
+          />
+
+          <a class="ggl-forgot" href="#">Bạn quên địa chỉ email?</a>
+
+          <p class="ggl-privacy">
+            Trước khi sử dụng AuthCentralA, bạn có thể xem
+            <a href="#">Chính sách quyền riêng tư</a> và
+            <a href="#">Điều khoản dịch vụ</a>
+            của ứng dụng này.
+          </p>
+
+          <div id="modalError" class="ggl-error"></div>
+
+          <div class="ggl-actions">
+            <a id="modalRegisterLink" class="ggl-btn-create" href="/register/">Tạo tài khoản</a>
+            <button id="modalSubmit" class="ggl-btn-next" type="submit">Tiếp theo</button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 
   <script type="module" src="/auth/js/pages/login.js"></script>

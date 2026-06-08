@@ -159,3 +159,27 @@ export function clearOauthRequestId() {
   return setState({ oauthRequestId: "" });
 }
 
+// ── Account Chooser: danh sách tài khoản đã đăng nhập trên IdP ──
+
+const ACCOUNTS_KEY = "idp_accounts";
+
+export function getIdpAccounts() {
+  try {
+    return JSON.parse(localStorage.getItem(ACCOUNTS_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+export function saveIdpAccount(email, name) {
+  if (!email) return;
+  const list = getIdpAccounts().filter(a => a.email !== email);
+  list.unshift({ email, name: name || email, lastUsed: Date.now() });
+  localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(list.slice(0, 5)));
+}
+
+export function removeIdpAccount(email) {
+  const list = getIdpAccounts().filter(a => a.email !== email);
+  localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(list));
+}
+

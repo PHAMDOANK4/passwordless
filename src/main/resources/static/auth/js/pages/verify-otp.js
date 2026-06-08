@@ -2,7 +2,7 @@ import { api } from "../api.js";
 import { ROUTES, goTo } from "../routes.js";
 import { requirePendingOtp } from "../guards.js";
 import { byId, hide, setLoading, setStatus, setText, show } from "../ui.js";
-import { clearAuthTransaction, getState, setTokens, clearOauthRequestId } from "../store.js";
+import { clearAuthTransaction, getState, setTokens, clearOauthRequestId, saveIdpAccount } from "../store.js";
 import { normalizeRequestOptions, serializeAssertion } from "../webauthn.js";
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -132,7 +132,7 @@ async function verifyWebAuthn() {
 }
 
 function onVerifySuccess(response) {
-  const accessToken = response.accessToken || response.access_token || "";
+  const accessToken  = response.accessToken  || response.access_token  || "";
   const refreshToken = response.refreshToken || response.refresh_token || "";
 
   if (!accessToken) {
@@ -145,14 +145,32 @@ function onVerifySuccess(response) {
   setTokens(accessToken, refreshToken);
   clearAuthTransaction();
 
+  // Lưu tài khoản vào danh sách Account Chooser
+  // Lấy email + name từ JWT payload
+  const email = state.userEmail || _jwtField(accessToken, "email") || "";
+  const name  = _jwtField(accessToken, "name")
+             || _jwtField(accessToken, "preferred_username")
+             || email;
+  saveIdpAccount(email, name);
+
   if (oauthReqId) {
     clearOauthRequestId();
     window.setTimeout(() => {
       window.location.href = `/oauth2/authorize/callback?oauth_request_id=${encodeURIComponent(oauthReqId)}`;
-    }, 1200);
+    }, 400);
   } else {
     window.setTimeout(() => {
       goTo(ROUTES.setupAuthMethods);
-    }, 1200);
+    }, 800);
+  }
+}
+
+// Đọc một claim từ JWT mà không cần verify chữ ký (chỉ dùng để lấy tên hiển thị)
+function _jwtField(token, field) {
+  try {
+    const b64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(atob(b64))[field] || "";
+  } catch {
+    return "";
   }
 }

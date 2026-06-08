@@ -3,13 +3,17 @@ package org.openidentityplatform.passwordless.admin;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
+import org.openidentityplatform.passwordless.apps.repositories.AuditLogRepository;
 import org.openidentityplatform.passwordless.iam.dto.CreateUserRequest;
 import org.openidentityplatform.passwordless.iam.models.Domain;
 import org.openidentityplatform.passwordless.iam.models.User;
 import org.openidentityplatform.passwordless.iam.repositories.DomainRepository;
 import org.openidentityplatform.passwordless.iam.repositories.UserRepository;
+import org.openidentityplatform.passwordless.magiclink.repositories.MagicLinkRepository;
+import org.openidentityplatform.passwordless.oauth2.repositories.UserConsentRepository;
 import org.openidentityplatform.passwordless.otp.models.SentOtp;
 import org.openidentityplatform.passwordless.otp.repositories.SentOtpRepository;
+import org.openidentityplatform.passwordless.recovery.repositories.BackupCodeRepository;
 import org.openidentityplatform.passwordless.oauth2.models.Session;
 import org.openidentityplatform.passwordless.oauth2.repositories.AuthorizationCodeRepository;
 import org.openidentityplatform.passwordless.oauth2.repositories.SessionRepository;
@@ -50,6 +54,10 @@ public class AdminUserController {
     private final RegisteredTotpRepository totpRepository;
     private final UserAuthenticatorJPARepository webAuthnRepository;
     private final SentOtpRepository sentOtpRepository;
+    private final MagicLinkRepository magicLinkRepository;
+    private final AuditLogRepository auditLogRepository;
+    private final UserConsentRepository userConsentRepository;
+    private final BackupCodeRepository backupCodeRepository;
     private final SessionService sessionService;
     private final AuthorizationCodeRepository authorizationCodeRepository;
     private final TokenRepository tokenRepository;
@@ -239,18 +247,30 @@ public class AdminUserController {
     }
 
     /**
-     * Delete a user. This only removes the IAM user record.
+     * Delete a user and all their associated records.
+     * Requires SUPER_ADMIN role when admin security is enabled.
      */
     @DeleteMapping("/{id}")
     @Transactional
-    @org.springframework.security.access.prepost.PreAuthorize("hasRole('SUPER_ADMIN')")
-    public ResponseEntity<Void> deleteUser(@PathVariable String id) {
+    public ResponseEntity<Void> deleteUser(@PathVariable String id, HttpServletRequest request) {
+        String adminRole = (String) request.getAttribute("adminUserRole");
+        if (adminRole != null && !"SUPER_ADMIN".equals(adminRole)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
         if (!userRepository.existsById(id)) {
             return ResponseEntity.notFound().build();
         }
 
         try {
-            // Delete dependent auth records first to avoid FK constraint violations.
+            // Clear nullable FK references to preserve audit history
+            auditLogRepository.clearUserReference(id);
+
+            // Delete all dependent records before deleting the user
+            userConsentRepository.deleteByUserId(id);
+            backupCodeRepository.deleteByUserId(id);
+            magicLinkRepository.deleteByUserId(id);
+            sentOtpRepository.deleteByUserId(id);
             authorizationCodeRepository.deleteByUserId(id);
             tokenRepository.deleteByUserId(id);
             userSessionRepository.deleteByUserId(id);

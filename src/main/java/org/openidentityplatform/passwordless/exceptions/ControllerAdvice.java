@@ -5,6 +5,7 @@ import org.openidentityplatform.passwordless.otp.services.BadRequestException;
 import org.openidentityplatform.passwordless.otp.services.SendOtpException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -29,6 +30,11 @@ public class ControllerAdvice {
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<Map<String, String>> handleSendOtpException(BadRequestException e) {
         return new ResponseEntity<>(Collections.singletonMap(ERROR_PROPERTY, e.getMessage()), HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, String>> handleAccessDeniedException(AccessDeniedException e) {
+        return new ResponseEntity<>(Collections.singletonMap(ERROR_PROPERTY, "Access denied. Insufficient privileges."), HttpStatus.FORBIDDEN);
     }
 
     @ExceptionHandler(RuntimeException.class)

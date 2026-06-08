@@ -15,4 +15,6 @@ public interface UserConsentRepository extends JpaRepository<UserConsent, String
     void deleteByUserIdAndClientId(String userId, String clientId);
 
     List<UserConsent> findByUserId(String userId);
+
+    void deleteByUserId(String userId);
 }
